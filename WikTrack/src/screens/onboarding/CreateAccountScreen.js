@@ -11,34 +11,32 @@ import { supabase } from '../../lib/supabase';
 import { useBusinessStore } from '../../store';
 
 export default function CreateAccountScreen({ navigation }) {
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [businessName, setBusinessName] = useState('');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const setBusiness = useBusinessStore((s) => s.setBusiness);
 
   const handleCreateAccount = async () => {
-    if (!phone.trim() || !fullName.trim() || !businessName.trim()) {
-      Alert.alert('Missing info', 'Please fill in all fields.');
+    if (!email.trim() || !password.trim() || !fullName.trim() || !businessName.trim()) {
+      Alert.alert('Missing info', 'Please fill in email, password, your name, and business name.');
       return;
     }
 
-    // Normalize phone number
-    let normalizedPhone = phone.replace(/\s/g, '');
-    if (normalizedPhone.startsWith('0')) {
-      normalizedPhone = '+254' + normalizedPhone.slice(1);
-    } else if (normalizedPhone.startsWith('254')) {
-      normalizedPhone = '+' + normalizedPhone;
-    } else if (!normalizedPhone.startsWith('+')) {
-      normalizedPhone = '+254' + normalizedPhone;
+    if (password.length < 6) {
+      Alert.alert('Weak password', 'Password must be at least 6 characters.');
+      return;
     }
 
     setLoading(true);
 
     try {
-      // Sign up with phone OTP via Supabase
-      const { data: authData, error: authError } = await supabase.auth.signInWithOtp({
-        phone: normalizedPhone,
+      // Sign up with email + password via Supabase
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
       });
 
       if (authError) {
@@ -47,39 +45,27 @@ export default function CreateAccountScreen({ navigation }) {
         return;
       }
 
-      // Store in Zustand temporarily — will create business record after OTP verification
+      // Normalize phone if provided (optional field)
+      let normalizedPhone = '';
+      if (phone.trim()) {
+        normalizedPhone = phone.replace(/\s/g, '');
+        if (normalizedPhone.startsWith('0')) {
+          normalizedPhone = '+254' + normalizedPhone.slice(1);
+        } else if (normalizedPhone.startsWith('254')) {
+          normalizedPhone = '+' + normalizedPhone;
+        } else if (!normalizedPhone.startsWith('+')) {
+          normalizedPhone = '+254' + normalizedPhone;
+        }
+      }
+
+      // Store in Zustand — business record created after email verification
       setBusiness({
         ownerName: fullName.trim(),
         ownerPhone: normalizedPhone,
         businessName: businessName.trim(),
       });
 
-      // For now, skip OTP verification and create business directly
-      // In production, you'd verify OTP first
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (user) {
-        const { data: biz, error: bizError } = await supabase
-          .from('businesses')
-          .insert({
-            user_id: user.id,
-            name: businessName.trim(),
-            owner_phone: normalizedPhone,
-          })
-          .select()
-          .single();
-
-        if (bizError) {
-          console.error('Business creation error:', bizError);
-        } else {
-          setBusiness({
-            businessId: biz.id,
-            trialStarted: biz.trial_started,
-          });
-        }
-      }
-
-      navigation.navigate('PaymentType');
+      navigation.navigate('VerifyEmail');
     } catch (err) {
       Alert.alert('Error', 'Something went wrong. Please try again.');
       console.error(err);
@@ -97,15 +83,28 @@ export default function CreateAccountScreen({ navigation }) {
         <Text style={styles.title}>Create your account</Text>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Phone number</Text>
+          <Text style={styles.label}>Email address</Text>
           <TextInput
             style={styles.input}
-            placeholder="0712 345 678"
+            placeholder="you@example.com"
             placeholderTextColor={colors.grayText}
-            keyboardType="phone-pad"
-            value={phone}
-            onChangeText={setPhone}
-            maxLength={15}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            value={email}
+            onChangeText={setEmail}
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Password</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="At least 6 characters"
+            placeholderTextColor={colors.grayText}
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
           />
         </View>
 
@@ -131,6 +130,19 @@ export default function CreateAccountScreen({ navigation }) {
           />
         </View>
 
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Phone number (optional)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="0712 345 678"
+            placeholderTextColor={colors.grayText}
+            keyboardType="phone-pad"
+            value={phone}
+            onChangeText={setPhone}
+            maxLength={15}
+          />
+        </View>
+
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleCreateAccount}
@@ -145,7 +157,7 @@ export default function CreateAccountScreen({ navigation }) {
         </TouchableOpacity>
 
         <Text style={styles.hint}>
-          We will send you a verification code via SMS.
+          We'll send a confirmation link to your email.
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>

@@ -1,6 +1,6 @@
 # WikTrack
 
-M-Pesa income tracking app for Kenya's informal economy. Reads SMS messages from Safaricom M-Pesa and displays an income dashboard for small business owners.
+**Free** M-Pesa income tracking app for Kenya's informal economy. Reads SMS messages from Safaricom M-Pesa and displays an income dashboard for small business owners. No subscriptions, no trials — completely free.
 
 ## Project Structure
 
@@ -75,9 +75,9 @@ npx eas-cli build --profile preview --platform android
 - Income dashboard with daily/weekly/monthly summaries
 - 7-day income bar chart
 - Transaction list with search and type filtering
-- Onboarding flow with phone auth
+- Onboarding flow with email + password auth (Supabase)
+- Email verification screen
 - Daily 8PM push notification summary
-- 7-day free trial logic
 - Deduplication via SMS hash
 
 ## Environment Variables

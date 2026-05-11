@@ -14,7 +14,6 @@ import { formatRelativeTime } from '../lib/formatDate';
 import { useBusinessStore } from '../store';
 import { supabase } from '../lib/supabase';
 import ToggleRow from '../components/shared/ToggleRow';
-import SubscriptionCard from '../components/cards/SubscriptionCard';
 
 const PAYMENT_TYPES = [
   { key: 'pochi', label: 'Pochi', color: colors.pochi, bg: colors.pochiBg, border: colors.pochiBorder },
@@ -151,15 +150,6 @@ export default function SettingsScreen({ navigation }) {
             );
           })}
         </View>
-
-        {/* Subscription */}
-        <Text style={styles.sectionLabel}>SUBSCRIPTION</Text>
-        <SubscriptionCard
-          onUpgrade={() => {
-            // TODO: Navigate to payment/upgrade flow
-            Alert.alert('Coming Soon', 'Payment integration will be added soon.');
-          }}
-        />
 
         {/* Footer links */}
         <View style={styles.footer}>

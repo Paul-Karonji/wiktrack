@@ -10,9 +10,6 @@ export const useBusinessStore = create(
       businessName: '',
       ownerName: '',
       ownerPhone: '',
-      plan: 'free',
-      trialStarted: null,
-
       // Onboarding state
       onboardingComplete: false,
 
@@ -36,15 +33,6 @@ export const useBusinessStore = create(
       setNotificationsEnabled: (enabled) => set({ notificationsEnabled: enabled }),
       completeOnboarding: () => set({ onboardingComplete: true }),
 
-      // Trial helpers
-      getDaysLeftInTrial: () => {
-        const started = get().trialStarted;
-        if (!started) return 0;
-        const diff = Date.now() - new Date(started).getTime();
-        const daysPassed = Math.floor(diff / (1000 * 60 * 60 * 24));
-        return Math.max(0, 7 - daysPassed);
-      },
-
       // Reset
       logout: () =>
         set({
@@ -52,8 +40,6 @@ export const useBusinessStore = create(
           businessName: '',
           ownerName: '',
           ownerPhone: '',
-          plan: 'free',
-          trialStarted: null,
           onboardingComplete: false,
           enabledTypes: ['pochi', 'p2p', 'till', 'paybill'],
           lastSyncAt: null,

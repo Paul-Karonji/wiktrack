@@ -1,0 +1,84 @@
+// smsParser.js — Parses all 4 M-Pesa SMS formats into structured JSON
+
+export const SMS_TYPES = {
+  TILL: 'till',
+  PAYBILL: 'paybill',
+  POCHI: 'pochi',
+  P2P: 'p2p',
+};
+
+// Shared helpers
+const parseAmount = (str) => parseFloat(str.replace(/,/g, ''));
+const parseDate = (d, t) => {
+  const [day, month, yr] = d.split('/');
+  const year = parseInt(yr) + 2000;
+  return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} ${t}`);
+};
+
+// REGEX PATTERNS — one per SMS type
+const TILL_REGEX = /Confirmed\.\s+Ksh([\d,]+(?:\.\d+)?)\s+received from\s+([A-Z][A-Z\s]+?)\s+(\d{10})\s+on\s+(\d+\/\d+\/\d+)\s+at\s+([\d:]+\s+[AP]M)\.\s+New Till balance is Ksh([\d,]+(?:\.\d+)?)/i;
+
+const PAYBILL_REGEX = /Confirmed\.\s+Ksh([\d,]+(?:\.\d+)?)\s+received from\s+([A-Z][A-Z\s]+?)\s+(\d{10})\s+for account\s+(\S+)\s+on\s+(\d+\/\d+\/\d+)\s+at\s+([\d:]+\s+[AP]M)\.\s+New Paybill balance is Ksh([\d,]+(?:\.\d+)?)/i;
+
+const POCHI_REGEX = /Confirmed\.\s+Ksh([\d,]+(?:\.\d+)?)\s+received from\s+([A-Z][A-Z\s]+?)\s+(\d{10})\s+via Pochi la Biashara\s+on\s+(\d+\/\d+\/\d+)\s+at\s+([\d:]+\s+[AP]M)\.\s+New Pochi balance is Ksh([\d,]+(?:\.\d+)?)/i;
+
+// P2P: phone number comes BEFORE name in this format
+const P2P_REGEX = /Confirmed\.\s+Ksh([\d,]+(?:\.\d+)?)\s+received from\s+(\d{10})\s+([A-Z][A-Z\s]+?)\s+on\s+(\d+\/\d+\/\d+)\s+at\s+([\d:]+\s+[AP]M)\.\s+New M-PESA balance is Ksh([\d,]+(?:\.\d+)?)/i;
+
+export function parseMpesaSMS(smsBody, enabledTypes = ['till', 'paybill', 'pochi', 'p2p']) {
+  let match;
+
+  if (enabledTypes.includes('till') && (match = smsBody.match(TILL_REGEX))) {
+    return {
+      type: SMS_TYPES.TILL,
+      amount: parseAmount(match[1]),
+      senderName: match[2].trim(),
+      senderPhone: match[3],
+      accountRef: null,
+      timestamp: parseDate(match[4], match[5]),
+      balance: parseAmount(match[6]),
+      rawSms: smsBody,
+    };
+  }
+
+  if (enabledTypes.includes('paybill') && (match = smsBody.match(PAYBILL_REGEX))) {
+    return {
+      type: SMS_TYPES.PAYBILL,
+      amount: parseAmount(match[1]),
+      senderName: match[2].trim(),
+      senderPhone: match[3],
+      accountRef: match[4],
+      timestamp: parseDate(match[5], match[6]),
+      balance: parseAmount(match[7]),
+      rawSms: smsBody,
+    };
+  }
+
+  if (enabledTypes.includes('pochi') && (match = smsBody.match(POCHI_REGEX))) {
+    return {
+      type: SMS_TYPES.POCHI,
+      amount: parseAmount(match[1]),
+      senderName: match[2].trim(),
+      senderPhone: match[3],
+      accountRef: null,
+      timestamp: parseDate(match[4], match[5]),
+      balance: parseAmount(match[6]),
+      rawSms: smsBody,
+    };
+  }
+
+  if (enabledTypes.includes('p2p') && (match = smsBody.match(P2P_REGEX))) {
+    return {
+      type: SMS_TYPES.P2P,
+      amount: parseAmount(match[1]),
+      senderName: match[3].trim(),
+      senderPhone: match[2],
+      accountRef: null,
+      timestamp: parseDate(match[4], match[5]),
+      balance: parseAmount(match[6]),
+      rawSms: smsBody,
+    };
+  }
+
+  return null; // not an M-Pesa received transaction
+}

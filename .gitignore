@@ -9,7 +9,9 @@ dist/
 web-build/
 expo-env.d.ts
 
-# Native
+# Native — let EAS run expo prebuild on their servers
+android/
+ios/
 *.orig.*
 *.jks
 *.p8
@@ -31,6 +33,7 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
 
 # typescript
 *.tsbuildinfo

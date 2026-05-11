@@ -1,39 +1,53 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
-# dependencies
+# Dependencies
 node_modules/
+
+# Environment variables (NEVER commit these)
+.env
+.env.local
+.env.*.local
+
+# Handover doc contains secrets — pass privately only
+HANDOVER.md
 
 # Expo
 .expo/
 dist/
 web-build/
-expo-env.d.ts
 
-# Native — let EAS run expo prebuild on their servers
+# Native build outputs (EAS generates these remotely)
 android/
 ios/
-*.orig.*
+
+# Build artifacts
+*.apk
+*.aab
+*.ipa
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
+*.pem
 
-# Metro
-.metro-health-check*
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
 
-# debug
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Debug logs
 npm-debug.*
 yarn-debug.*
 yarn-error.*
 
-# macOS
-.DS_Store
-*.pem
-
-# local env files
-.env*.local
-.env
-
-# typescript
+# TypeScript
 *.tsbuildinfo
+
+# Metro bundler
+.metro-health-check*

@@ -1,0 +1,17 @@
+{
+  "name": "sms-reader",
+  "version": "1.0.0",
+  "description": "Native SMS Reader for WikTrack",
+  "main": "index.ts",
+  "types": "index.ts",
+  "files": [
+    "android",
+    "ios",
+    "src",
+    "index.ts",
+    "expo-module.config.json"
+  ],
+  "peerDependencies": {
+    "expo": "*"
+  }
+}

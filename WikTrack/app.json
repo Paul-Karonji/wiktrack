@@ -7,13 +7,14 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
+      "image": "./assets/splash.png",
       "backgroundColor": "#0F8A3B",
       "resizeMode": "contain"
     },
     "android": {
       "package": "com.wiktrack.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0F8A3B"
       },
       "permissions": [

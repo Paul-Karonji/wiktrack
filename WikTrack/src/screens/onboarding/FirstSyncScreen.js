@@ -29,81 +29,80 @@ export default function FirstSyncScreen({ navigation, route }) {
     }
   }, []);
 
-  const runInitialSync = () => {
+  const runInitialSync = async () => {
     const filter = {
       box: 'inbox',
       address: 'MPESA',
       minDate: 0, // Read all history
     };
 
-    readSmsMessages(
-      filter,
-      (fail) => {
-        console.error('SMS read failed:', fail);
-        finishOnboarding();
-      },
-      async (count, smsList) => {
-        const messages = JSON.parse(smsList);
-        setMessageCount(messages.length);
-
-        const parsed = messages
-          .map((sms) => parseMpesaSMS(sms.body, enabledTypes))
-          .filter(Boolean);
-
-        if (parsed.length === 0) {
-          finishOnboarding();
-          return;
-        }
-
-        // Animate progress
-        Animated.timing(progressAnim, {
-          toValue: 1,
-          duration: Math.min(parsed.length * 50, 3000), // At least 3s for the wow moment
-          useNativeDriver: false,
-        }).start();
-
-        try {
-          // Process in batches of 50
-          const batchSize = 50;
-          let processedCount = 0;
-
-          for (let i = 0; i < parsed.length; i += batchSize) {
-            const batch = parsed.slice(i, i + batchSize);
-            const transactions = await Promise.all(
-              batch.map(async (tx) => ({
-                business_id: businessId,
-                type: tx.type,
-                amount: tx.amount,
-                sender_name: tx.senderName,
-                sender_phone: tx.senderPhone,
-                account_ref: tx.accountRef,
-                timestamp: tx.timestamp.toISOString(),
-                balance: tx.balance,
-                source: 'sms',
-                sms_hash: await Crypto.digestStringAsync(
-                  Crypto.CryptoDigestAlgorithm.SHA256,
-                  tx.rawSms
-                ),
-              }))
-            );
-
-            await supabase
-              .from('transactions')
-              .upsert(transactions, { onConflict: 'sms_hash' });
-
-            processedCount += batch.length;
-            setImported(processedCount);
-          }
-
-          setLastSync();
-        } catch (err) {
-          console.error('Initial sync error:', err);
-        }
-
-        setImporting(false);
-        setTimeout(() => finishOnboarding(), 1500);
+    try {
+      // Register for push notifications during initial sync
+      if (businessId) {
+        const { registerForPushNotifications } = require('../../lib/notifications');
+        registerForPushNotifications(businessId).catch(err => 
+          console.error('Push registration failed:', err)
+        );
       }
-    );
+
+      const messages = await readSmsMessages(filter);
+      setMessageCount(messages.length);
+
+      const parsed = messages
+        .map((sms) => parseMpesaSMS(sms.body, enabledTypes))
+        .filter(Boolean);
+
+      if (parsed.length === 0) {
+        finishOnboarding();
+        return;
+      }
+
+      // Animate progress
+      Animated.timing(progressAnim, {
+        toValue: 1,
+        duration: Math.min(parsed.length * 50, 3000), // At least 3s for the wow moment
+        useNativeDriver: false,
+      }).start();
+
+      // Process in batches of 50
+      const batchSize = 50;
+      let processedCount = 0;
+
+      for (let i = 0; i < parsed.length; i += batchSize) {
+        const batch = parsed.slice(i, i + batchSize);
+        const transactions = await Promise.all(
+          batch.map(async (tx) => ({
+            business_id: businessId,
+            type: tx.type,
+            amount: tx.amount,
+            sender_name: tx.senderName,
+            sender_phone: tx.senderPhone,
+            account_ref: tx.accountRef,
+            timestamp: tx.timestamp.toISOString(),
+            balance: tx.balance,
+            source: 'sms',
+            sms_hash: await Crypto.digestStringAsync(
+              Crypto.CryptoDigestAlgorithm.SHA256,
+              tx.rawSms
+            ),
+          }))
+        );
+
+        await supabase
+          .from('transactions')
+          .upsert(transactions, { onConflict: 'sms_hash' });
+
+        processedCount += batch.length;
+        setImported(processedCount);
+      }
+
+      setLastSync();
+    } catch (err) {
+      console.error('Initial sync error:', err);
+    }
+
+    setImporting(false);
+    setTimeout(() => finishOnboarding(), 1500);
   };
 
   const finishOnboarding = () => {

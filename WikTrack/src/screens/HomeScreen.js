@@ -22,12 +22,21 @@ import SkeletonCard, { SkeletonRow } from '../components/shared/SkeletonCard';
 const screenWidth = Dimensions.get('window').width;
 
 export default function HomeScreen({ navigation }) {
-  const { ownerName, syncStatus, lastSyncAt } = useBusinessStore();
+  const { ownerName, syncStatus, lastSyncAt, businessId } = useBusinessStore();
   const {
     loading, todayTotal, todayCount, weekTotal, weekTrend,
     monthTotal, monthTrend, recentTransactions, weeklyData, refresh,
   } = useDashboard();
   const { sync } = useSmsSync();
+
+  React.useEffect(() => {
+    if (businessId) {
+      const { registerForPushNotifications } = require('../lib/notifications');
+      registerForPushNotifications(businessId).catch(err => 
+        console.error('Push registration failed:', err)
+      );
+    }
+  }, [businessId]);
 
   const firstName = ownerName ? ownerName.split(' ')[0] : '';
 

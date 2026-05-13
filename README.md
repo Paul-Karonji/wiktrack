@@ -7,7 +7,8 @@ M-Pesa income tracking app for Kenya's informal economy. Reads SMS messages from
 ```
 Wik track/
 ├── WikTrack/               # Expo React Native app (Android)
-│   ├── App.js              # Root component + navigation
+│   ├── modules/            # [NEW] Custom Native Expo Modules
+│   │   └── sms-reader      # Native Android SMS reader module
 │   ├── src/
 │   │   ├── screens/        # All app screens (Home, Transactions, Settings, Onboarding)
 │   │   ├── components/     # Reusable UI components (cards, badges, shared)
@@ -15,14 +16,14 @@ Wik track/
 │   │   ├── lib/            # Utilities (smsParser, smsReader, supabase, notifications)
 │   │   ├── store/          # Zustand state management
 │   │   └── theme/          # Design tokens (colors, typography, spacing, shadows)
-│   ├── assets/             # App icons
+│   ├── assets/             # App icons & branding
 │   ├── app.json            # Expo config
 │   └── eas.json            # EAS Build config
-├── wiktrack-backend/       # Node.js + Express API server
-│   ├── index.js            # Express server entry point
-│   ├── routes/             # API routes (auth, dashboard)
-│   ├── jobs/               # Cron jobs (dailySummary)
-│   └── lib/                # Backend utilities (supabase client, notifications)
+├── wiktrack-backend/       # Node.js + Express API server (Vercel Ready)
+│   ├── routes/             # API routes (auth, dashboard, cron)
+│   ├── lib/                # Backend utilities (supabase client, notifications)
+│   ├── vercel.json         # [NEW] Vercel deployment & Cron config
+│   └── index.js            # Express server entry point
 ├── supabase-schema.sql     # Database schema (already applied)
 └── PesaBoard_Design_Spec_v2.md  # UI/UX design specification
 ```
@@ -31,15 +32,16 @@ Wik track/
 
 | Layer | Technology |
 |-------|-----------|
-| Mobile App | React Native + Expo SDK 54 (bare workflow) |
+| Mobile App | React Native + Expo SDK 54 (New Architecture Ready) |
+| Native Logic | **Custom Local Expo Modules (Kotlin)** |
 | Navigation | React Navigation 7 (native stack + bottom tabs) |
 | State | Zustand with AsyncStorage persistence |
 | Database | Supabase (PostgreSQL + Auth + RLS) |
 | Backend | Node.js + Express |
+| Hosting | **Vercel (Serverless)** |
+| Scheduling | **Vercel Cron (8:00 PM EAT)** |
 | Notifications | Expo Push Notifications (FCM) |
 | Build | EAS Build (cloud) |
-| Icons | Lucide React Native |
-| Charts | react-native-chart-kit |
 
 ## Getting Started
 
@@ -53,44 +55,32 @@ Wik track/
 ```bash
 cd WikTrack
 npm install
-npx expo start
+npx expo run:android   # Build locally
+# OR
+eas build -p android --profile preview   # Build in cloud
 ```
 
-### Backend
-```bash
-cd wiktrack-backend
-cp .env.example .env   # Fill in your Supabase credentials
-npm install
-node index.js
-```
-
-### Build APK
-```bash
-cd WikTrack
-npx eas-cli build --profile preview --platform android
-```
+### Backend (Deployed on Vercel)
+The backend is now serverless and deployed to Vercel.
+- **URL**: `https://wiktrack.vercel.app`
+- **Cron**: Automated via `vercel.json`
 
 ## Key Features (Phase 1)
-- SMS parsing for 4 M-Pesa transaction types: Till, Paybill, Pochi la Biashara, P2P
-- Income dashboard with daily/weekly/monthly summaries
-- 7-day income bar chart
-- Transaction list with search and type filtering
-- Onboarding flow with phone auth
-- Daily 8PM push notification summary
-- 7-day free trial logic
-- Deduplication via SMS hash
+- ✅ **Native SMS Engine**: Custom module for high-performance Android SMS reading.
+- ✅ **Full Auth Flow**: Login & Registration with email/password via Supabase.
+- ✅ **Income Dashboard**: Daily/weekly/monthly summaries with 7-day trend chart.
+- ✅ **Transaction List**: Real-time filtering and search for M-Pesa transactions.
+- ✅ **Auto-Sync**: Background-ready syncing with deduplication via SHA-256 hashing.
+- ✅ **Smart Summaries**: Daily 8PM push notification via Vercel Cron.
+- ✅ **Branding**: Configured with adaptive icons and notification tokens.
 
 ## Environment Variables
 
-### Frontend (`WikTrack/src/lib/supabase.js`)
-- `SUPABASE_URL` — Supabase project URL
-- `SUPABASE_ANON_KEY` — Supabase anonymous public JWT
-
-### Backend (`wiktrack-backend/.env`)
+### Backend (`wiktrack-backend/` via Vercel)
 - `SUPABASE_URL` — Supabase project URL
 - `SUPABASE_SERVICE_KEY` — Supabase service role secret
-- `PORT` — Server port (default 3000)
-- `NODE_ENV` — Environment mode
+- `CRON_SECRET` — Secret key to authorize Vercel Cron jobs
+- `NODE_ENV` — `production`
 
 ## License
 Private — All rights reserved.

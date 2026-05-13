@@ -38,9 +38,7 @@ export default function WelcomeScreen({ navigation }) {
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => {
-            // TODO: Navigate to login screen
-          }}
+          onPress={() => navigation.navigate('Login')}
         >
           <Text style={styles.loginLink}>Already have an account? Log in</Text>
         </TouchableOpacity>

@@ -49,63 +49,54 @@ export function useSmsSync() {
       minDate: lastSync,
     };
 
-    readSmsMessages(
-      filter,
-      (fail) => {
-        console.error('SMS read failed:', fail);
-        setSyncStatus('error');
-      },
-      async (count, smsList) => {
-        try {
-          const messages = JSON.parse(smsList);
+    try {
+      const messages = await readSmsMessages(filter);
+      
+      const parsed = messages
+        .map((sms) => parseMpesaSMS(sms.body, enabledTypes))
+        .filter(Boolean);
 
-          const parsed = messages
-            .map((sms) => parseMpesaSMS(sms.body, enabledTypes))
-            .filter(Boolean);
-
-          if (parsed.length === 0) {
-            setSyncStatus('idle');
-            setLastSync();
-            return;
-          }
-
-          const transactions = await Promise.all(
-            parsed.map(async (tx) => ({
-              business_id: businessId,
-              type: tx.type,
-              amount: tx.amount,
-              sender_name: tx.senderName,
-              sender_phone: tx.senderPhone,
-              account_ref: tx.accountRef,
-              timestamp: tx.timestamp.toISOString(),
-              balance: tx.balance,
-              source: 'sms',
-              // Hash the raw SMS for deduplication
-              sms_hash: await Crypto.digestStringAsync(
-                Crypto.CryptoDigestAlgorithm.SHA256,
-                tx.rawSms
-              ),
-            }))
-          );
-
-          const { error } = await supabase
-            .from('transactions')
-            .upsert(transactions, { onConflict: 'sms_hash' });
-
-          if (error) {
-            console.error('Sync error:', error);
-            setSyncStatus('error');
-          } else {
-            await AsyncStorage.setItem(SYNC_KEY, Date.now().toString());
-            setSyncStatus('idle');
-            setLastSync();
-          }
-        } catch (err) {
-          console.error('Sync processing error:', err);
-          setSyncStatus('error');
-        }
+      if (parsed.length === 0) {
+        setSyncStatus('idle');
+        setLastSync();
+        return;
       }
-    );
+
+      const transactions = await Promise.all(
+        parsed.map(async (tx) => ({
+          business_id: businessId,
+          type: tx.type,
+          amount: tx.amount,
+          sender_name: tx.senderName,
+          sender_phone: tx.senderPhone,
+          account_ref: tx.accountRef,
+          timestamp: tx.timestamp.toISOString(),
+          balance: tx.balance,
+          source: 'sms',
+          // Hash the raw SMS for deduplication
+          sms_hash: await Crypto.digestStringAsync(
+            Crypto.CryptoDigestAlgorithm.SHA256,
+            tx.rawSms
+          ),
+        }))
+      );
+
+      const { error } = await supabase
+        .from('transactions')
+        .upsert(transactions, { onConflict: 'sms_hash' });
+
+      if (error) {
+        console.error('Sync error:', error);
+        setSyncStatus('error');
+      } else {
+        await AsyncStorage.setItem(SYNC_KEY, Date.now().toString());
+        setSyncStatus('idle');
+        setLastSync();
+      }
+    } catch (err) {
+      console.error('Sync processing error:', err);
+      setSyncStatus('error');
+    }
   }, [businessId, enabledTypes, setSyncStatus, setLastSync]);
 
   useEffect(() => {

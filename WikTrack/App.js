@@ -25,6 +25,7 @@ import PaymentTypeScreen from './src/screens/onboarding/PaymentTypeScreen';
 import SmsPermissionScreen from './src/screens/onboarding/SmsPermissionScreen';
 import FirstSyncScreen from './src/screens/onboarding/FirstSyncScreen';
 import VerifyEmailScreen from './src/screens/onboarding/VerifyEmailScreen';
+import LoginScreen from './src/screens/onboarding/LoginScreen';
 
 // Main screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -111,6 +112,7 @@ export default function App() {
             <Stack.Screen name="PaymentType" component={PaymentTypeScreen} />
             <Stack.Screen name="SmsPermission" component={SmsPermissionScreen} />
             <Stack.Screen name="FirstSync" component={FirstSyncScreen} />
+            <Stack.Screen name="Login" component={LoginScreen} />
           </>
         ) : null}
         <Stack.Screen name="MainTabs" component={MainTabs} />

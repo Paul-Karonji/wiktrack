@@ -3,7 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import dashboardRoutes from './routes/dashboard.js';
 import authRoutes from './routes/auth.js';
-import { startDailySummaryCron } from './jobs/dailySummary.js';
+import cronRoutes from './routes/cron.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,11 +20,14 @@ app.get('/', (req, res) => {
 // Routes
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/cron', cronRoutes);
 
-// Start daily summary cron job
-startDailySummaryCron();
+// Start server if not running on Vercel
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`WikTrack backend running on port ${PORT}`);
+  });
+}
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`WikTrack backend running on port ${PORT}`);
-});
+// Export for Vercel serverless functions
+export default app;

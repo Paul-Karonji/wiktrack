@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   View, Text, StyleSheet, ScrollView, StatusBar, TouchableOpacity, Dimensions,
+  RefreshControl,
 } from 'react-native';
 import { Wallet, Bell, TrendingUp, Calendar } from 'lucide-react-native';
 import { BarChart } from 'react-native-chart-kit';
@@ -28,6 +29,7 @@ export default function HomeScreen({ navigation }) {
     monthTotal, monthTrend, recentTransactions, weeklyData, refresh,
   } = useDashboard();
   const { sync } = useSmsSync();
+  const [refreshing, setRefreshing] = React.useState(false);
 
   React.useEffect(() => {
     if (businessId) {
@@ -37,6 +39,18 @@ export default function HomeScreen({ navigation }) {
       );
     }
   }, [businessId]);
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await sync(); // Trigger SMS Sync
+      await refresh(); // Refresh Dashboard Data
+    } catch (error) {
+      console.error('Refresh failed:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [sync, refresh]);
 
   const firstName = ownerName ? ownerName.split(' ')[0] : '';
 
@@ -58,6 +72,14 @@ export default function HomeScreen({ navigation }) {
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.green]}
+            tintColor={colors.green}
+          />
+        }
       >
         {/* Header */}
         <View style={styles.header}>

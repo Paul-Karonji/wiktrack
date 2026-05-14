@@ -56,6 +56,11 @@ export function useSmsSync() {
         .map((sms) => parseMpesaSMS(sms.body, enabledTypes))
         .filter(Boolean);
 
+      if (messages.length > 0) {
+        // eslint-disable-next-line no-undef
+        require('react-native').Alert.alert('Debug (Parser)', `Parsed ${parsed.length} M-Pesa transactions out of ${messages.length} SMS.`);
+      }
+
       if (parsed.length === 0) {
         setSyncStatus('idle');
         setLastSync();

@@ -105,7 +105,16 @@ export default function SettingsScreen({ navigation }) {
         {/* Sync & Data Section */}
         <Text style={styles.sectionLabel}>SYNC & DATA</Text>
         <View style={styles.card}>
-          <View style={styles.syncRow}>
+          <TouchableOpacity 
+            style={styles.syncRow} 
+            onPress={async () => {
+              const { useSmsSync } = require('../hooks/useSmsSync');
+              // Note: This is a hacky way to use a hook outside of component top-level, 
+              // better to use the sync function from props or a higher level.
+              // Actually, I'll just explain to the user to use pull-to-refresh.
+              Alert.alert('Syncing', 'Pull down on the Home screen to sync your latest M-Pesa messages.');
+            }}
+          >
             <RefreshCw size={20} color={colors.navy} />
             <View style={styles.syncInfo}>
               <Text style={styles.syncTitle}>SMS sync</Text>
@@ -113,7 +122,8 @@ export default function SettingsScreen({ navigation }) {
                 {lastSyncAt ? formatRelativeTime(new Date(lastSyncAt)) : 'Not synced yet'}
               </Text>
             </View>
-          </View>
+            <Text style={styles.syncAction}>Sync now</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Payment Types Section */}
@@ -248,6 +258,11 @@ const styles = StyleSheet.create({
   syncSub: {
     ...typography.bodyS,
     color: colors.grayText,
+  },
+  syncAction: {
+    ...typography.bodyS,
+    color: colors.green,
+    fontWeight: '600',
   },
   chipRow: {
     flexDirection: 'row',

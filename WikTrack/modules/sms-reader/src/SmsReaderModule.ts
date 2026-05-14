@@ -1,4 +1,4 @@
-import { NativeModule, requireNativeModule } from 'expo';
+import { NativeModule, requireOptionalNativeModule } from 'expo';
 
 export type SmsMessage = {
   _id: number;
@@ -18,4 +18,4 @@ declare class SmsReaderModule extends NativeModule {
 }
 
 // This call loads the native module object from the JSI.
-export default requireNativeModule<SmsReaderModule>('SmsReader');
+export default requireOptionalNativeModule<SmsReaderModule>('SmsReader');

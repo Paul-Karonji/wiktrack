@@ -16,6 +16,9 @@ Notifications.setNotificationHandler({
 // Request permission + get push token + save to Supabase
 export async function registerForPushNotifications(businessId) {
   if (Platform.OS !== 'android') return null;
+  if (!businessId) {
+    throw new Error('Business profile is missing.');
+  }
 
   // Create Android notification channel
   await Notifications.setNotificationChannelAsync('default', {
@@ -26,7 +29,9 @@ export async function registerForPushNotifications(businessId) {
 
   // Request permission
   const { status } = await Notifications.requestPermissionsAsync();
-  if (status !== 'granted') return null;
+  if (status !== 'granted') {
+    throw new Error(`Notification permission status: ${status}`);
+  }
 
   // Get the push token (this is the 'address' for this phone)
   const token = (await Notifications.getExpoPushTokenAsync({ projectId: EAS_PROJECT_ID })).data;

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "974935809124",
+    "project_id": "wiktrack",
+    "storage_bucket": "wiktrack.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:974935809124:android:a65e158582a29f2ad0d371",
+        "android_client_info": {
+          "package_name": "com.wiktrack.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzcEbkremn2hPoyewAO-Ak8KdfDPUjxIM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

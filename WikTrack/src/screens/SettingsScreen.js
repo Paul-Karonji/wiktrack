@@ -26,9 +26,56 @@ const PAYMENT_TYPES = [
 export default function SettingsScreen({ navigation }) {
   const {
     businessName, ownerName, ownerPhone, enabledTypes, lastSyncAt,
-    notificationsEnabled, setNotificationsEnabled, setEnabledTypes, businessId, logout,
+    notificationsEnabled, pushToken, setNotificationsEnabled, setEnabledTypes,
+    setPushToken, businessId, logout,
   } = useBusinessStore();
   const { sync } = useSmsSync(false);
+  const [registeringNotifications, setRegisteringNotifications] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!businessId) return;
+
+    supabase
+      .from('businesses')
+      .select('notifications, push_token')
+      .eq('id', businessId)
+      .single()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('Failed to load notification settings:', error);
+          return;
+        }
+
+        setNotificationsEnabled(Boolean(data.notifications));
+        setPushToken(data.push_token || null);
+      });
+  }, [businessId, setNotificationsEnabled, setPushToken]);
+
+  const handleRegisterNotifications = async () => {
+    if (!businessId || registeringNotifications) return;
+
+    setRegisteringNotifications(true);
+    try {
+      const { registerForPushNotifications } = require('../lib/notifications');
+      const token = await registerForPushNotifications(businessId);
+
+      await supabase
+        .from('businesses')
+        .update({ notifications: true })
+        .eq('id', businessId);
+
+      setPushToken(token);
+      setNotificationsEnabled(true);
+      Alert.alert('Notifications ready', 'This phone is registered for daily summary notifications.');
+    } catch (err) {
+      Alert.alert(
+        'Notification setup failed',
+        err.message || 'Could not register this phone for push notifications.'
+      );
+    } finally {
+      setRegisteringNotifications(false);
+    }
+  };
 
   const togglePaymentType = (key) => {
     const updated = enabledTypes.includes(key)
@@ -92,16 +139,47 @@ export default function SettingsScreen({ navigation }) {
             title="Daily summary notification"
             description="Receive your income summary at 8PM"
             value={notificationsEnabled}
-            onValueChange={(val) => {
-              setNotificationsEnabled(val);
+            onValueChange={async (val) => {
+              if (val) {
+                await handleRegisterNotifications();
+                return;
+              }
+
+              setNotificationsEnabled(false);
               if (businessId) {
                 supabase
                   .from('businesses')
-                  .update({ notifications: val })
+                  .update({ notifications: false })
                   .eq('id', businessId);
               }
             }}
           />
+          <TouchableOpacity
+            style={styles.notificationRegisterRow}
+            onPress={handleRegisterNotifications}
+            disabled={registeringNotifications}
+            activeOpacity={0.85}
+          >
+            <View
+              style={[
+                styles.notificationStatusDot,
+                pushToken && styles.notificationStatusDotActive,
+              ]}
+            />
+            <View style={styles.syncInfo}>
+              <Text style={styles.syncTitle}>
+                {pushToken ? 'Phone registered' : 'Phone not registered'}
+              </Text>
+              <Text style={styles.syncSub}>
+                {pushToken
+                  ? 'Daily summaries can be sent to this phone.'
+                  : 'Register this phone so Vercel cron can send summaries.'}
+              </Text>
+            </View>
+            <Text style={styles.syncAction}>
+              {registeringNotifications ? 'Working...' : pushToken ? 'Refresh' : 'Register'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Sync & Data Section */}
@@ -277,6 +355,23 @@ const styles = StyleSheet.create({
     ...typography.bodyS,
     color: colors.green,
     fontWeight: '600',
+  },
+  notificationRegisterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  notificationStatusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.amber,
+  },
+  notificationStatusDotActive: {
+    backgroundColor: colors.green,
   },
   chipRow: {
     flexDirection: 'row',

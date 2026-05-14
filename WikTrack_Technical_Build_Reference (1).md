@@ -46,7 +46,6 @@ WikTrack is a lightweight Android app (distributed as a direct APK — no Play S
 | :- | :- | :- | :- |
 |Android App|React Native + Expo (bare workflow)|Free|Write JS once, produces Android APK. Bare workflow needed for READ\_SMS native module.|
 |Database|Supabase (PostgreSQL)|Free tier|Auth + REST API + real-time subscriptions included. No separate auth system to build.|
-|Backend Server|Node.js + Express on Railway|Free tier|Receives Daraja webhooks, triggers notifications, generates reports.|
 |Push Notifications|Expo Notifications (FCM)|Free forever|Replaces Africa's Talking in Phase 1. Zero cost, zero setup friction.|
 |APK Distribution|EAS Build + direct download link|Free|Faster than Play Store by weeks. Share link via WhatsApp. Install on client phones directly.|
 |State Management|Zustand|Free|Lightweight, minimal boilerplate. Better than Redux for this app size.|
@@ -73,7 +72,6 @@ WikTrack has three separate pieces that talk to each other:
 
 `  `[Expo Notifications] <-- backend sends push to user phone
 
-`  `[Safaricom Daraja]   --> backend receives real-time Till/Paybill payment alerts
 
 `  `[Meta WhatsApp API]  <-- backend sends daily summary (Phase 2)
 
@@ -83,15 +81,12 @@ This is the most important architectural concept in WikTrack. There are two ways
 |**Pipeline**|**Data Source**|**Who It Serves**|**How It Works**|
 | :- | :- | :- | :- |
 |Path A — SMS Reader|Device SMS inbox (MPESA sender)|ALL users — Pochi, P2P, Till, Paybill|App reads M-Pesa SMS inbox with READ\_SMS permission. Parses messages on-device. Only clean JSON goes to Supabase. No raw SMS ever leaves the phone.|
-|Path B — Daraja API|Safaricom Daraja C2B webhook|ONLY clients with registered Till or Paybill number|Safaricom sends real-time POST to your Railway server the moment a payment arrives. Faster than SMS. Instant dashboard update before SMS even arrives on phone.|
 
-|<p>**Critical Deduplication Rule**</p><p>Both Path A and Path B write to the SAME transactions table in Supabase. The mpesa\_code field (from Daraja) and sms\_hash field (from SMS) both have UNIQUE constraints. Even if a transaction arrives via BOTH Daraja AND SMS, it only appears ONCE in the database. Deduplication is built into the schema automatically.</p>|
 | :- |
 
 ### **Backend Server — Three Jobs**
-Your Node.js backend on Railway does exactly three things in Phase 1:
+Your Node.js backend on Vercel does exactly three things in Phase 1:
 
-- Receives Daraja C2B webhooks from Safaricom (POST /webhook/confirmation)
 - Sends daily push notification summary at 8PM EAT via Expo Notifications
 - Serves API data to the app (dashboard totals, report generation)
 
@@ -129,9 +124,7 @@ CREATE TABLE businesses (
 
 `  `enabled\_types   TEXT[] DEFAULT ARRAY['till','paybill','pochi','p2p'],
 
-`  `daraja\_key      TEXT,                           -- Encrypted consumer key (Phase 3)
 
-`  `daraja\_secret   TEXT,                           -- Encrypted consumer secret (Phase 3)
 
 `  `push\_token      TEXT,                           -- Expo push token for notifications
 
@@ -150,7 +143,6 @@ CREATE TABLE businesses (
 );
 
 ### **Table 2 — transactions**
-One row per M-Pesa payment received. Both SMS and Daraja payments go here. Deduplication enforced by UNIQUE constraints.
 
 CREATE TABLE transactions (
 
@@ -168,13 +160,11 @@ CREATE TABLE transactions (
 
 `  `account\_ref   TEXT,                     -- Paybill account reference
 
-`  `mpesa\_code    TEXT UNIQUE,              -- e.g. OEI2AK4Q16 — prevents Daraja duplicates
 
 `  `sms\_hash      TEXT UNIQUE,              -- SHA256 of raw SMS — prevents SMS duplicates
 
 `  `timestamp     TIMESTAMP NOT NULL,
 
-`  `source        TEXT DEFAULT 'sms' CHECK (source IN ('sms','daraja')),
 
 `  `shortcode     TEXT,
 
@@ -948,7 +938,6 @@ wiktrack-backend/
 
 ├── routes/
 
-│   ├── webhook.js        # Daraja C2B confirmation + validation
 
 │   ├── dashboard.js      # Dashboard summary endpoints
 
@@ -960,7 +949,6 @@ wiktrack-backend/
 
 │   ├── notifications.js  # Expo push notification sender
 
-│   └── daraja.js         # Daraja token management (Phase 3)
 
 ├── jobs/
 
@@ -987,11 +975,8 @@ NODE\_ENV=production
 
 
 
-\# Daraja (Phase 3 only — leave blank for Phase 1)
 
-\# DARAJA\_CONSUMER\_KEY=
 
-\# DARAJA\_CONSUMER\_SECRET=
 
 
 
@@ -1334,7 +1319,6 @@ export function formatKES(value) {
 |Free|KES 0|Basic dashboard, 30-day history, all 4 SMS types|Lead generation — gets them hooked on their own data|
 |Starter|KES 299/mo|Full dashboard, push daily summary, 1-year history, export|Primary tier — Pochi + P2P users, mama mbogas, boda operators|
 |Business|KES 699/mo|Everything + Business Income Report PDF, 2-user access, monthly comparison|Growing businesses needing accountant access or credit documentation|
-|Pro|KES 1,499/mo|Everything + Daraja direct integration, advanced analytics, priority support|Established merchants with Till/Paybill (Phase 3 only)|
 
 ### **Free Trial Logic**
 - 7-day free trial on first install — full Starter features
@@ -1382,12 +1366,11 @@ Goal: You can show a complete stranger your dashboard and they understand it wit
 ### **Week 3 — Backend + Notifications**
 Goal: At 8PM you receive a push notification showing your day's income from WikTrack.
 
-- **Set up Express backend on Railway. Connect to Supabase with service role key.**
+- **Set up Express backend on Vercel. Connect to Supabase with service role key.**
 - Add expo-notifications to app. Request permission in onboarding. Save push token to Supabase.
 - Write sendPushNotification() function in backend.
 - Build the 8PM daily summary cron job.
 - Test: temporarily change cron schedule to every 5 minutes. Confirm you receive push notifications.
-- **Add Daraja webhook handler (webhook.js). Test with sandbox.**
 - **SUCCESS CHECK: Receive real push notification at 8PM with your day's M-Pesa income.**
 
 ### **Week 4 — Polish + First Real Users**
@@ -1406,11 +1389,9 @@ Goal: 3 real clients have WikTrack installed and are receiving their daily push 
 
 |**Rule**|**Why**|**How to Implement**|
 | :- | :- | :- |
-|Never store Daraja keys in the app|APK can be decompiled — keys exposed|Store in Supabase encrypted column or backend .env only|
 |Use Supabase Row Level Security (RLS)|Prevents users seeing other businesses data|Already included in SQL schema — DO NOT disable|
 |Service role key on backend ONLY|Anon key in app cannot bypass RLS|SUPABASE\_SERVICE\_KEY in backend .env only — anon key in app|
 |Never store raw SMS content|Raw SMS may contain sensitive personal data|Store SHA256(rawSms) as sms\_hash for deduplication only|
-|HTTPS everywhere|Daraja requires it — protects data in transit|Railway and Vercel provide free HTTPS automatically|
 |Add .env to .gitignore immediately|Prevent secrets being pushed to GitHub|First thing you do after creating the project|
 |Never commit API keys to GitHub|Public repos are crawled by bots within minutes|Use environment variables for all sensitive values|
 
@@ -1420,7 +1401,6 @@ Goal: 3 real clients have WikTrack installed and are receiving their daily push 
 
 |**Feature**|**Decision**|**Reason**|**When**|
 | :- | :- | :- | :- |
-|Daraja API integration|DEFERRED|Per-client setup takes weeks. Too slow to scale in Phase 1.|Phase 3 — Pro tier only|
 |Expense tracking|DEFERRED|Too much friction for informal market. Nobody logs expenses daily.|Phase 2 — Business tier|
 |Net Profit card|DEFERRED|Requires reliable expense data. Circular dependency.|Phase 2 after expenses added|
 |Play Store listing|DEFERRED|READ\_SMS exception takes 3-7 weeks to approve. APK is faster.|Month 3+ when 30+ users|
@@ -1439,10 +1419,9 @@ Goal: 3 real clients have WikTrack installed and are receiving their daily push 
 |**Service**|**URL**|**What You Do There**|
 | :- | :- | :- |
 |Supabase|supabase.com|Create project, run SQL schema, view data, manage auth|
-|Railway|railway.app|Deploy backend server, set environment variables, view logs|
+|Vercel|vercel.com|Deploy backend server, set environment variables, view logs|
 |Expo / EAS|expo.dev|Build APK, manage builds, download APK files|
 |Meta for Developers|developers.facebook.com|WhatsApp Cloud API setup (Phase 2)|
-|Safaricom Daraja|developer.safaricom.co.ke|Daraja API credentials + go-live (Phase 3)|
 |IntaSend / Pesapal|intasend.com / pesapal.com|M-Pesa payment gateway for subscription billing|
 |Vercel|vercel.com|Deploy PWA web companion for accountants (Phase 2)|
 

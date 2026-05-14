@@ -1,101 +1,135 @@
 # WikTrack Development Issue Log
 
-This document records the technical challenges, bugs, and resolutions encountered during the finalization of the WikTrack production build.
+Last updated: 2026-05-15
 
-## Current Fix Pass - 2026-05-14
-- Dashboard and transaction history visibility was tightened:
-  - Dashboard now refetches when Home regains focus, fixing the stale state where parsed/imported transactions were visible on the Transactions page but not after returning to Dashboard.
-  - Transactions now has visible date filter chips for All time, Today, 7 days, This month, and year filters for the current plus two previous years.
-  - Transactions filter buttons were visually cleaned up after a mobile screenshot showed the rows looking squeezed: type filters now wrap into a responsive grid and date filters use compact wrapping chips.
-  - Tapping Today's Income on Dashboard applies the Today filter on Transactions and clears the navigation flag after applying it.
-  - Historical transaction group headers and row timestamps now include the year for prior-year records, e.g. `Apr 16, 2024`.
-  - Recent Payments empty state copy no longer says "today" because that list shows the latest transactions overall.
-- Native SMS loading was hardened by importing the `sms-reader` package path, explicitly declaring `expo.autolinking.nativeModulesDir`, and confirming local Android autolinking resolves `expo.modules.smsreader.SmsReaderModule`.
-- Email verification now refreshes the Supabase session, fetches the current user, avoids duplicate business rows, and blocks continuing without a business profile.
-- Returning-user login now uses the real onboarding store action and no longer calls the missing `setOnboardingComplete` method.
-- Vercel Cron now runs at `0 17 * * *`, which is 8:00 PM EAT, and backend daily summaries use Nairobi day boundaries.
-- Vercel Cron was hardened so production reports missing `CRON_SECRET`, rejects unauthorized calls cleanly, supports protected dry-run checks, returns eligible/skipped/sent/failed counts, and logs Expo push ticket failures.
-- Debug SMS alerts were removed from production sync; Settings "Sync now" now triggers a real sync.
+This file records the important issues found during the Phase 1 build and how they were resolved. Phase 1 is complete; the remaining known friction is the email verification redirect behavior described below.
 
-## Current Issue - Local Android Release APK Build
-**Status:** Resolved / local APK built successfully
-- **Observation:** EAS cloud builds were taking too long for fast testing.
-- **Cause:** The project is an Expo app, but this Windows machine already has a generated `WikTrack/android` Gradle project and Android SDK installed locally.
-- **Fix:** Local Gradle release builds should use the ignored `WikTrack/android/local.properties` file with `sdk.dir=C:/Users/paul/AppData/Local/Android/Sdk`, then run `WikTrack/android/gradlew.bat :app:assembleRelease`.
-- **Result:** `WikTrack/android/app/build/outputs/apk/release/app-release.apk` was built successfully. The APK is about 66 MB. No Android device was connected over `adb`, so install still needs to be done manually or after connecting a phone with USB debugging enabled.
+## Current Remaining Friction
 
-## Current Issue - Local Expo Metro TypeScript Dependency Check
-**Status:** Environment/dependency note, not an app architecture change
-- **Observation:** Running local `npm run start -- --port 8081` reached Expo/Metro, then Expo stopped with a message asking to install `typescript@~5.9.2` and `@types/react@~19.1.10`.
-- **Cause:** The app is still using Expo. Expo detects TypeScript files in the local SMS module (`modules/sms-reader`) and requires the TypeScript helper packages for local Metro startup.
-- **Resolution:** Install the packages with `npx expo install typescript @types/react` if local `expo start` is blocked. No package changes were made during the filter UI pass.
+### Email Verification Redirect
+**Status:** Verification works, redirect UX needs polish
 
-## Current Issue - Backend/App Relationship for Cron
-**Status:** Clarified / direct backend calls from app not required for daily summary cron
-- **Observation:** The Android app is linked directly to Supabase for auth, transactions, dashboard reads, settings, SMS sync, and saving the Expo push token.
-- **Cause:** The backend is not currently the app's data API. For daily summaries, the intended chain is: app saves `businesses.push_token` in Supabase, Vercel Cron calls the backend, backend reads Supabase with the service key, backend sends Expo push notifications.
-- **Fix:** Keep app data direct-to-Supabase for now and fix the cron path instead. In Vercel Dashboard, confirm project root is `wiktrack-backend`, Cron Jobs includes `/api/cron/daily-summary`, and Production env vars include `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, and `CRON_SECRET`.
-- **Verification:** Local production-mode cron smoke test passed: unauthenticated dry-run returned `401`, authorized dry-run returned `200` with count fields. Deployed backend health is `200`, and deployed unauthenticated cron returns `401`; the new detailed counters will appear after pushing and Vercel redeploys the backend changes.
+- **Observation:** Supabase email verification links verify the user successfully, but the link opens the backend/web URL instead of deep-linking back into the Android app.
+- **Impact:** Users can verify, then must return to the app and log in again. Existing-account login works.
+- **Next improvement:** Configure a mobile deep link or a clearer verification landing page that tells the user to return to WikTrack.
 
-## Current Issue - Sync Scope After Native Module Fix
-**Status:** Fix applied / needs new APK confirmation
-- **Observation:** After the native module started working, the app appeared to scan only recent/today messages.
-- **Cause:** This is checkpoint behavior, not necessarily parser failure. `FirstSyncScreen` scans all SMS history with `minDate: 0`, but Home/Settings sync uses the persisted `@wiktrack_last_sync` timestamp. Earlier failed or empty sync attempts could write this timestamp before a successful historical import.
-- **Fix:** Added a separate `@wiktrack_full_history_synced` marker. Until full history is marked complete, the next sync scans all history even if `@wiktrack_last_sync` exists. Settings sync now reports how many MPESA SMS were read and how many payments parsed/imported.
-- **Parser verification:** If Settings reports SMS read > 0 but payments imported = 0, the native reader is working and the remaining issue is parser coverage or message type selection. If SMS read = 0, the issue is sender filtering, SMS permission, or there are no matching inbox messages from MPESA/M-PESA.
+## Resolved Issues
 
-## Current Issue - Android SMS Address Query Returned 0
-**Status:** Fix applied / needs new APK confirmation
-- **Observation:** Settings showed "Read 0 M-Pesa SMS" even though the phone's Messages app showed an `MPESA` conversation.
-- **Cause:** Parser was not reached. The native Android query was filtering by sender address (`address = MPESA` / `M-PESA` / `LIKE %MPESA%`). Some Android SMS providers can display a sender as `MPESA` in the UI while not matching that exact content-provider address selection.
-- **Fix:** Native reader now tries the strict sender-address query first, then falls back to scanning inbox rows by date and immediately keeping only rows whose sender/body look like M-Pesa confirmation messages.
-- **Parser update:** Added support for the screenshot format: `Confirmed.You have received Ksh... from NAME masked-phone on DATE at TIME New M-PESA balance...`. This now parses as P2P income and captures the M-Pesa code.
+### Native SMS Reader and Import
+**Status:** Resolved
 
-## Current Issue - Generic "Sync failed" Despite Permission
-**Status:** Diagnostic + likely date parsing fix applied / needs new APK confirmation
-- **Observation:** Settings showed "Sync failed. Check SMS permission and try again" even though SMS permission was granted.
-- **Cause:** The app was hiding the actual failure stage behind a generic message. A likely runtime failure was parser date handling: it created dates from strings such as `2026-05-12 6:35 PM`, which can be unreliable in React Native/Hermes and can throw when converting to ISO for upload.
-- **Fix:** Sync now reports the actual failure stage and message (`permission`, `read/process`, `supabase`, etc.). The parser now builds transaction timestamps manually from day/month/year and 12-hour time instead of relying on string date parsing.
+- **Issue:** The app originally failed to load the native SMS reader in production builds, then later read `0` M-Pesa SMS on a phone that had an `MPESA` conversation.
+- **Root causes:** Local Expo module linkage needed hardening, Android SMS providers did not always match strict sender-address queries, and sync checkpoints could skip historical messages after failed/empty attempts.
+- **Fixes:** Imported the `sms-reader` package path, configured local-module autolinking, verified module naming, added strict-then-fallback inbox scanning, added full-history sync marker `@wiktrack_full_history_synced`, and exposed sync counts in Settings.
+- **Result:** SMS reading and import now work on the real Android phone.
 
-## 1. Build Failures & Asset Configuration
-**Status:** ✅ Resolved
-- **Issue:** EAS Build failed during the `expo doctor` and `prebuild` phases.
-- **Cause:** The `app.json` was referencing a `splash.png` that did not exist in the `/assets` directory.
-- **Resolution:** Temporarily pointed the splash screen to `icon.png` and created a standard set of production-ready icons (adaptive, notification, and splash) to satisfy the build requirements.
+### SMS Parser Coverage and Date Handling
+**Status:** Resolved
 
-## 2. Runtime Crash & Module Loading
-> Superseded by the 2026-05-14 fix pass above. Keep this section as historical context until a fresh APK confirms the native module on-device.
-**Status:** ⚠️ Partial / Critical Finding
-- **Issue:** The app would crash ("WikTrack keeps stopping").
-- **Cause:** Signature mismatch in Kotlin module.
-- **Current State:** The crash is prevented using `requireOptionalNativeModule`, but the module is **failing to load** in production builds. Diagnostic alert shows: `"SmsReaderModule is null"`.
-- **Next Step:** Verify why the Local Expo Module is not being linked during EAS prebuild. Check `package.json` paths and `expo-module.config.json`.
+- **Issue:** Some income messages were not parsed, and parser date handling could fail under React Native/Hermes.
+- **Fixes:** Added support for `Confirmed.You have received Ksh... from NAME masked-phone...` messages and manually constructed transaction timestamps instead of relying on loose string parsing.
+- **Result:** Real M-Pesa income imports are working and dedupe uses SHA-256 `sms_hash`.
 
-## 3. Email Verification Redirect & Session Stale
-**Status:** ⚠️ In Progress
-- **Issue 1:** Redirected to `localhost:3000`. (Update Supabase Site URL to `https://wiktrack.vercel.app`).
-- **Issue 2:** App says "not verified" even after clicking link. 
-- **Cause:** The app's `getSession()` call may be returning a stale user session that hasn't updated the `email_confirmed_at` flag yet.
-- **Next Step:** Implement `supabase.auth.refreshSession()` or a forced re-login after verification.
+### Dashboard and Transaction Visibility
+**Status:** Resolved
 
-## 4. SMS Sync "Empty" Dashboard
-**Status:** ℹ️ Information / Behavioral
-- **Issue:** Pulling to refresh resulted in 0 transactions despite having M-Pesa messages.
-- **Cause:** The app is an **Income Tracker**. It is designed to strictly parse incoming payments (`"received from"`). The test messages on the user's phone were outgoing payments (`"paid to"`), which the parser correctly ignores.
-- **Resolution:** Added diagnostic alerts to the app to surface the raw number of messages read vs. parsed.
+- **Issue:** Imported transactions could appear in Transactions but not immediately on Dashboard. Historical rows also looked like current-year rows because year labels were missing.
+- **Fixes:** Home refreshes dashboard data when the tab regains focus, transaction rows/section headers include the year for prior-year records, Transactions has date filters, and Today's Income opens Transactions with the Today filter.
+- **Result:** Dashboard and transaction history visibility are correct.
 
-**Follow-up - 2026-05-14:** A later device test showed parsed income transactions visible on the Transactions page but not immediately visible on Dashboard. Home now refreshes dashboard data whenever the tab regains focus, and the Recent Payments empty state no longer says "today" because that list shows the latest transactions overall.
+### Transactions Filter Layout
+**Status:** Resolved
 
-## 4a. Historical Transactions Grouped Ambiguously
-**Status:** Fix applied / needs new APK confirmation
-- **Issue:** Imported old SMS history, such as April 16, 2024 messages, displayed under a generic `Apr 16` group. That made prior-year transactions look like current-year transactions.
-- **Cause:** Transaction section headers and row date labels omitted the year for all older records.
-- **Resolution:** Prior-year transactions now render with the year in both group headers and row timestamps. Transactions also has date filter chips so older imported history can be narrowed by year or recent period.
+- **Issue:** Transaction filter chips looked squeezed on mobile.
+- **Fix:** Reworked the filter area into wrapping rows, compact date chips, and improved chip tap/accessibility state.
+- **Result:** Filters are cleaner and fit the mobile screen better.
 
-## 5. Notification Permission Sequence
-**Status:** ✅ Resolved
-- **Issue:** Notification permissions were not being requested early enough.
-- **Resolution:** Integrated the `registerForPushNotifications` call into the `FirstSyncScreen` (onboarding) and `HomeScreen` (mount) to ensure the push token is captured as soon as possible.
+### Returning-User Login
+**Status:** Resolved
 
----
-*Last Updated: May 14, 2026*
+- **Issue:** Returning-user login crashed because it called a missing onboarding store action.
+- **Fix:** Added/used the real onboarding store action.
+- **Result:** Existing-account login works.
+
+### Supabase Email Verification State
+**Status:** Resolved with redirect caveat
+
+- **Issue:** After clicking the email verification link, app session state could remain stale.
+- **Fix:** Verification screen refreshes Supabase auth state, fetches the current user, avoids duplicate business rows, and blocks continuing without a business profile.
+- **Result:** Verification works. Redirect still opens the backend/web URL, so users log in again after verifying.
+
+### Local Android Release Build
+**Status:** Resolved
+
+- **Issue:** EAS cloud builds were too slow for fast APK testing.
+- **Fix:** Used the generated local `WikTrack/android` Gradle project, local Android SDK path in ignored `android/local.properties`, JDK 17, and `:app:assembleRelease`.
+- **Result:** Local release APK builds successfully at `WikTrack/android/app/build/outputs/apk/release/app-release.apk`.
+
+### Expo TypeScript Dependency Check
+**Status:** Resolved
+
+- **Issue:** Expo/Metro complained about TypeScript files in `modules/sms-reader`.
+- **Fix:** Installed Expo-compatible `typescript` and `@types/react`.
+- **Result:** `npx expo-doctor` passes.
+
+### Vercel Cron Authentication and Observability
+**Status:** Resolved
+
+- **Issue:** Cron failures were hard to diagnose and could silently hide Supabase or Expo push errors.
+- **Fix:** Added explicit production `CRON_SECRET` validation, protected `?dryRun=1`, counters for eligible/skipped/sent/failed businesses, and per-business errors.
+- **Result:** Cron logs now clearly show why a summary is or is not sent.
+
+### Supabase Service Key in Vercel
+**Status:** Resolved
+
+- **Issue:** Vercel cron logged `Invalid API key`.
+- **Root cause:** Vercel had an invalid or wrong Supabase key.
+- **Fix:** Set Vercel Production env vars to the local backend values: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `CRON_SECRET`, and `NODE_ENV=production`.
+- **Result:** Backend can query Supabase in production.
+
+### Push Token Missing
+**Status:** Resolved
+
+- **Issue:** Cron returned `eligibleBusinesses: 0` even though the business had transactions.
+- **Root cause:** The business had `notifications: true` but `push_token: null`.
+- **Fix:** Settings now loads notification status from Supabase, shows whether the phone is registered, and provides explicit Register/Refresh actions. Registration errors are shown to the user instead of only logged.
+- **Result:** The phone saves a push token and cron sees `eligibleBusinesses: 1`.
+
+### Firebase Android Initialization
+**Status:** Resolved
+
+- **Issue:** Phone registration failed with `Default FirebaseApp is not initialized`.
+- **Root cause:** Android APK did not include Firebase Android config.
+- **Fix:** Added `WikTrack/google-services.json` for package `com.wiktrack.app`, configured `android.googleServicesFile` in `app.json`, and wired the local generated Android project with the Google Services Gradle plugin for local APK builds.
+- **Result:** Android can initialize Firebase/FCM and obtain an Expo push token.
+
+### Expo FCM V1 Credential
+**Status:** Resolved
+
+- **Issue:** Expo rejected push sends with `Unable to retrieve the FCM server key for the recipient's app`.
+- **Root cause:** Expo/EAS did not have the Firebase FCM V1 service account key assigned to `com.wiktrack.app`.
+- **Fix:** Uploaded the Firebase service account key through `eas credentials -p android` using the FCM V1 setup option.
+- **Result:** Vercel cron sent the daily summary notification successfully.
+- **Security note:** The first Firebase service-account private key was exposed in chat during testing. Rotate/delete that key in Firebase and upload the replacement to Expo/EAS after testing.
+
+### Backend/App Relationship
+**Status:** Clarified
+
+- **Issue:** It was unclear whether the Android app needed to call the backend directly.
+- **Finding:** The app intentionally talks directly to Supabase for auth, settings, transactions, dashboard data, and SMS sync. The backend is required for scheduled server-side notifications only.
+- **Result:** Architecture remains direct-to-Supabase for the app and Vercel-backed for daily summary notifications.
+
+### Removed Product Scope
+**Status:** Resolved
+
+- The app is free. Subscription/trial/payment-plan logic is not part of Phase 1.
+
+## Verification Summary
+
+- Real-phone SMS sync: working.
+- Existing-account login: working.
+- Supabase email verification: working, with redirect UX caveat.
+- Local APK build: working.
+- Vercel backend health: working.
+- Vercel Cron auth: working.
+- FCM V1 notification delivery: working.

@@ -92,7 +92,7 @@ export default function TransactionDetailScreen({ navigation, route }) {
     { label: 'Time', value: formatTime(txDate) },
     transaction.mpesa_code && { label: 'M-Pesa Code', value: transaction.mpesa_code, mono: true },
     transaction.account_ref && { label: 'Account Ref', value: transaction.account_ref },
-    { label: 'Source', value: transaction.source === 'sms' ? 'SMS (auto-detected)' : 'Daraja API (real-time)' },
+    { label: 'Source', value: transaction.source === 'sms' ? 'SMS (auto-detected)' : 'Imported transaction' },
     transaction.balance != null && { label: 'Balance after', value: formatKES(transaction.balance) },
   ].filter(Boolean);
 

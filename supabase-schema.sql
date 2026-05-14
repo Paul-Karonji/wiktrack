@@ -40,7 +40,7 @@ CREATE TABLE transactions (
   mpesa_code    TEXT UNIQUE,
   sms_hash      TEXT UNIQUE,
   timestamp     TIMESTAMP NOT NULL,
-  source        TEXT DEFAULT 'sms' CHECK (source IN ('sms','daraja')),
+  source        TEXT DEFAULT 'sms' CHECK (source = 'sms'),
   shortcode     TEXT,
   balance       NUMERIC(12,2),
   note          TEXT,

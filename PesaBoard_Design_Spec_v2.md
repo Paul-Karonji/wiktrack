@@ -1,4 +1,4 @@
-**PESABOARD**
+﻿**PESABOARD**
 
 Mobile App Design Specification
 
@@ -49,7 +49,6 @@ in Phase 1.
 
 This version replaces all previous design specs. It is fully aligned to
 the revised business model: PesaBoard serves Pochi la Biashara and P2P
-users first, with Till and Paybill as secondary markets. Daraja API,
 expenses, and profit tracking are deferred to Phase 2 and Phase 3.
 
 **1.2 Product Context**
@@ -78,7 +77,6 @@ The app serves four M-Pesa transaction types, in order of priority:
                                                     WhatsApp summary.
 
   **4 ---        Paybill         Registered         Included for completeness.
-  Secondary**                    businesses         Daraja integration deferred to
                                                     Phase 3.
   -------------- --------------- ------------------ ------------------------------
 
@@ -242,7 +240,7 @@ overwhelmed on first open.
 **3.2 Brand Name Note**
 
 +-----------------------------------------------------------------------+
-| **⚠️ Brand Name Pending**                                             |
+| **âš ï¸ Brand Name Pending**                                             |
 |                                                                       |
 | The name \'PesaBoard\' is already in use by another company. A new    |
 | name is being selected. This spec uses \'PesaBoard\' as a placeholder |
@@ -610,7 +608,7 @@ rounded style.
 
   made today --- without doing anything.
 
-  \[ Get Started \] ← green button, full width
+  \[ Get Started \] â† green button, full width
 
   Already have an account? Log in
   -----------------------------------------------------------------------
@@ -629,7 +627,7 @@ Single CTA only. No feature list --- the headline copy does the work.
 
   \[ Business name input \]
 
-  \[ Create Account \] ← green button
+  \[ Create Account \] â† green button
 
   We will send you a verification code via SMS.
   -----------------------------------------------------------------------
@@ -645,15 +643,15 @@ phone OTP only reduces friction.
 
   Select all that apply. You can change this later.
 
-  ☑ Pochi la Biashara ← selected by default
+  â˜‘ Pochi la Biashara â† selected by default
 
-  ☑ Personal M-Pesa received (P2P) ← selected by default
+  â˜‘ Personal M-Pesa received (P2P) â† selected by default
 
-  ☐ Till / BuyGoods (Lipa Na M-Pesa)
+  â˜ Till / BuyGoods (Lipa Na M-Pesa)
 
-  ☐ Paybill
+  â˜ Paybill
 
-  \[ Continue \] ← green button
+  \[ Continue \] â† green button
   -----------------------------------------------------------------------
 
 Notes: Pochi and P2P are pre-selected because they are our primary
@@ -672,17 +670,17 @@ additionally.
 
   to track your income automatically.
 
-  ✓ We ONLY read messages from MPESA.
+  âœ“ We ONLY read messages from MPESA.
 
-  ✓ We NEVER read messages from contacts.
+  âœ“ We NEVER read messages from contacts.
 
-  ✓ We NEVER share your SMS data.
+  âœ“ We NEVER share your SMS data.
 
-  ✓ You can turn this off anytime in Settings.
+  âœ“ You can turn this off anytime in Settings.
 
-  \[ Allow M-Pesa message access \] ← green button
+  \[ Allow M-Pesa message access \] â† green button
 
-  \[ Not now \] ← ghost text, smaller
+  \[ Not now \] â† ghost text, smaller
 
   Tapping Allow opens Android\'s standard permission dialog.
   -----------------------------------------------------------------------
@@ -725,53 +723,53 @@ business make today? Everything on this screen serves that question.
 **9.2 Full Screen Layout**
 
   -----------------------------------------------------------------------
-  ─────── STATUS BAR ───────
+  â”€â”€â”€â”€â”€â”€â”€ STATUS BAR â”€â”€â”€â”€â”€â”€â”€
 
-  **\[ Logo \] Good morning, Mary \[ 🔔 \]**
+  **\[ Logo \] Good morning, Mary \[ ðŸ”” \]**
 
-  ──────────────────────────────────────────────
+  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  ┌─────────────────────────────────────┐
+  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
 
-  **│ Today\'s Income \[ → \] │**
+  **â”‚ Today\'s Income \[ â†’ \] â”‚**
 
-  │ │
+  â”‚ â”‚
 
-  **│ KES 12,450 │**
+  **â”‚ KES 12,450 â”‚**
 
-  │ │
+  â”‚ â”‚
 
-  │ 23 payments received today │
+  â”‚ 23 payments received today â”‚
 
-  │ ● Synced 3 minutes ago │
+  â”‚ â— Synced 3 minutes ago â”‚
 
-  └─────────────────────────────────────┘
+  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 
-  ┌──────────────┐ ┌──────────────────┐
+  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â” â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
 
-  │ This Week │ │ This Month │
+  â”‚ This Week â”‚ â”‚ This Month â”‚
 
-  **│ KES 48,900 │ │ KES 187,200 │**
+  **â”‚ KES 48,900 â”‚ â”‚ KES 187,200 â”‚**
 
-  │ ↑ 12% vs LW │ │ ↑ 8% vs last │
+  â”‚ â†‘ 12% vs LW â”‚ â”‚ â†‘ 8% vs last â”‚
 
-  └──────────────┘ └──────────────────┘
+  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 
   **7-Day Income Trend**
 
   \[ Bar chart --- Mon to Sun --- green bars \]
 
-  **Recent Payments View all →**
+  **Recent Payments View all â†’**
 
-  ▼ KES 500 John Kamau \[Pochi\] 2:14 PM \>
+  â–¼ KES 500 John Kamau \[Pochi\] 2:14 PM \>
 
-  ▼ KES 200 Jane Njeri \[P2P\] 1:45 PM \>
+  â–¼ KES 200 Jane Njeri \[P2P\] 1:45 PM \>
 
-  ▼ KES 1,200 Peter M. \[Till\] 12:30 PM \>
+  â–¼ KES 1,200 Peter M. \[Till\] 12:30 PM \>
 
-  ▼ KES 350 Wanjiku \[Pochi\] 11:55 AM \>
+  â–¼ KES 350 Wanjiku \[Pochi\] 11:55 AM \>
 
-  ──────────────────────────────────────────────
+  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   **\[ Home \] \[ Transactions \] \[ Settings \]**
   -----------------------------------------------------------------------
@@ -853,9 +851,9 @@ previous period.
 
 Trend comparison format:
 
--   ↑ 12% vs last week --- green text
+-   â†‘ 12% vs last week --- green text
 
--   ↓ 6% vs last month --- red text
+-   â†“ 6% vs last month --- red text
 
 -   = Same as last week --- gray text
 
@@ -882,7 +880,7 @@ Just a clean visual showing the week\'s shape.
 **9.8 Recent Payments**
 
 Show last 5 transactions. Section header: \'Recent Payments\' with a
-\'View all →\' link to the Transactions tab.
+\'View all â†’\' link to the Transactions tab.
 
 Each row: incoming arrow icon (green circle, 40px), amount (bold, Body
 L), customer name (gray, Body M), type badge, time (right-aligned, Body
@@ -904,35 +902,35 @@ Empty state:
 **10.1 Full Screen Layout**
 
   -----------------------------------------------------------------------
-  ─────── STATUS BAR ───────
+  â”€â”€â”€â”€â”€â”€â”€ STATUS BAR â”€â”€â”€â”€â”€â”€â”€
 
-  **\[ Logo \] Transactions \[ 🔍 \] \[ ⚡ \]**
+  **\[ Logo \] Transactions \[ ðŸ” \] \[ âš¡ \]**
 
-  ──────────────────────────────────────────────
+  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   \[ All \] \[ Till \] \[ Pochi \] \[ P2P \] \[ Paybill \]
 
-  ┌────────────────────────────────────────┐
+  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
 
-  │ 96 transactions KES 582,400 total │
+  â”‚ 96 transactions KES 582,400 total â”‚
 
-  └────────────────────────────────────────┘
+  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 
   **Today**
 
-  ▼ KES 500 John Kamau \[Pochi\] 2:14 PM \>
+  â–¼ KES 500 John Kamau \[Pochi\] 2:14 PM \>
 
-  ▼ KES 200 Jane Njeri \[P2P\] 1:45 PM \>
+  â–¼ KES 200 Jane Njeri \[P2P\] 1:45 PM \>
 
-  ▼ KES 1,200 Peter M. \[Till\] 12:30 PM \>
+  â–¼ KES 1,200 Peter M. \[Till\] 12:30 PM \>
 
   **Yesterday**
 
-  ▼ KES 800 Wanjiku \[Pochi\] 5:12 PM \>
+  â–¼ KES 800 Wanjiku \[Pochi\] 5:12 PM \>
 
-  ▼ KES 350 James K. \[P2P\] 3:44 PM \>
+  â–¼ KES 350 James K. \[P2P\] 3:44 PM \>
 
-  ──────────────────────────────────────────────
+  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   **\[ Home \] \[ Transactions \] \[ Settings \]**
   -----------------------------------------------------------------------
@@ -988,9 +986,9 @@ income history.
 **11.2 Screen Layout**
 
   -----------------------------------------------------------------------
-  **← Back Payment Detail**
+  **â† Back Payment Detail**
 
-  ──────────────────────────────────────────────
+  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   \[ Green circle + Pochi icon --- 60px \]
 
@@ -998,27 +996,27 @@ income history.
 
   Pochi la Biashara
 
-  ┌──────────────────────────────────────┐
+  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
 
-  │ From John Kamau │
+  â”‚ From John Kamau â”‚
 
-  │ Phone +254 712 \*\*\* \*\*\* │
+  â”‚ Phone +254 712 \*\*\* \*\*\* â”‚
 
-  │ Date May 12, 2026 │
+  â”‚ Date May 12, 2026 â”‚
 
-  │ Time 2:14 PM │
+  â”‚ Time 2:14 PM â”‚
 
-  │ M-Pesa Code OEI2AK4Q16 │
+  â”‚ M-Pesa Code OEI2AK4Q16 â”‚
 
-  │ Source SMS (auto-detected) │
+  â”‚ Source SMS (auto-detected) â”‚
 
-  │ Balance KES 12,450 after │
+  â”‚ Balance KES 12,450 after â”‚
 
-  └──────────────────────────────────────┘
+  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 
   Add a note (optional)\...
 
-  \[ Share via WhatsApp \] ← outline button
+  \[ Share via WhatsApp \] â† outline button
   -----------------------------------------------------------------------
 
 **11.3 Field Specifications**
@@ -1027,11 +1025,9 @@ income history.
   **Field**       **Data Source**       **Display Rule**
 
   **From          Parsed from SMS or    Show full name. If unknown show
-  (customer       Daraja                \'Unknown sender\'.
   name)**         FirstName+LastName    
 
   **Phone         Parsed from SMS       Show masked: +254 712 \*\*\*
-  number**        (MSISDN from Daraja   \*\*\*. Never show full number.
                   is hashed)            
 
   **Date**        Parsed timestamp      May 12, 2026 format
@@ -1039,10 +1035,8 @@ income history.
   **Time**        Parsed timestamp      2:14 PM format
 
   **M-Pesa Code** Parsed from SMS or    Show as-is: OEI2AK4Q16. Monospace
-                  Daraja TransID        font.
 
   **Source**      Set during sync       \'SMS (auto-detected)\' or
-                                        \'Daraja API (real-time)\' in
                                         Phase 3
 
   **Balance       Parsed from SMS       Running M-Pesa balance after this
@@ -1071,39 +1065,39 @@ pre-formatted message:
 **12.1 Full Screen Layout**
 
   -----------------------------------------------------------------------
-  ─────── STATUS BAR ───────
+  â”€â”€â”€â”€â”€â”€â”€ STATUS BAR â”€â”€â”€â”€â”€â”€â”€
 
   **\[ Logo \] Settings**
 
-  ──────────────────────────────────────────────
+  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  ┌──────────────────────────────────────┐
+  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
 
-  │ \[ Store icon \] Mary\'s Salon │
+  â”‚ \[ Store icon \] Mary\'s Salon â”‚
 
-  │ Mary Wanjiku │
+  â”‚ Mary Wanjiku â”‚
 
-  │ +254 722 123 456 ✎ │
+  â”‚ +254 722 123 456 âœŽ â”‚
 
-  └──────────────────────────────────────┘
+  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 
-  **▸ NOTIFICATIONS**
+  **â–¸ NOTIFICATIONS**
 
   WhatsApp daily summary \[ ON \]
 
   Payment alerts \[ OFF \]
 
-  **▸ SYNC & DATA**
+  **â–¸ SYNC & DATA**
 
   SMS sync \[ ON \]
 
   Last synced: 3 minutes ago
 
-  **▸ PAYMENT TYPES TRACKED**
+  **â–¸ PAYMENT TYPES TRACKED**
 
-  \[✓ Pochi\] \[✓ P2P\] \[ Till\] \[ Paybill\]
+  \[âœ“ Pochi\] \[âœ“ P2P\] \[ Till\] \[ Paybill\]
 
-  **▸ SUBSCRIPTION**
+  **â–¸ SUBSCRIPTION**
 
   **Free Trial --- 5 days remaining**
 
@@ -1111,7 +1105,7 @@ pre-formatted message:
 
   Help & Support / Privacy / Log Out
 
-  ──────────────────────────────────────────────
+  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   **\[ Home \] \[ Transactions \] \[ Settings \]**
   -----------------------------------------------------------------------
@@ -1223,33 +1217,33 @@ Report contents:
 **13.2 Reports Screen Layout (Phase 2)**
 
   -----------------------------------------------------------------------
-  **\[ ← Home \] Reports \[ April 2026 ▼ \]**
+  **\[ â† Home \] Reports \[ April 2026 â–¼ \]**
 
-  ──────────────────────────────────────────────
+  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  ┌──────────────────────────────────────┐
+  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
 
-  **│ Total Income KES 312,450 │**
+  **â”‚ Total Income KES 312,450 â”‚**
 
-  │ Transactions 1,248 │
+  â”‚ Transactions 1,248 â”‚
 
-  │ Avg Daily Income KES 10,415 │
+  â”‚ Avg Daily Income KES 10,415 â”‚
 
-  └──────────────────────────────────────┘
+  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 
   \[ Weekly bar chart --- W1 W2 W3 W4 \]
 
   \[ Donut chart: Pochi / P2P / Till / Paybill \]
 
-  ┌──────────────────────────────────────┐
+  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
 
-  **│ 📄 Business Income Report │**
+  **â”‚ ðŸ“„ Business Income Report â”‚**
 
-  │ Share your verified income record │
+  â”‚ Share your verified income record â”‚
 
-  │ \[ Generate Report \] ← green CTA │
+  â”‚ \[ Generate Report \] â† green CTA â”‚
 
-  └──────────────────────────────────────┘
+  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 
   \[ Share via WhatsApp \] \[ Download PDF \]
   -----------------------------------------------------------------------
@@ -1283,7 +1277,7 @@ illustration. Min height 160px. Rounded corners 24px. Padding 24px.
 >
 > value: string;
 >
-> trend?: string; // \'↑ 12% vs last week\'
+> trend?: string; // \'â†‘ 12% vs last week\'
 >
 > trendDirection?: \'up\' \| \'down\' \| \'neutral\';
 >
@@ -1558,7 +1552,7 @@ internally.
 
 **17.2 Touch Targets**
 
--   Minimum touch target: 44px height × 44px width --- no exceptions
+-   Minimum touch target: 44px height Ã— 44px width --- no exceptions
 
 -   Transaction rows: minimum 68px height
 
@@ -1632,7 +1626,7 @@ for graceful degradation:
 >
 > PaymentTypeScreen.tsx
 >
-> SmsPermissionScreen.tsx ← most critical screen
+> SmsPermissionScreen.tsx â† most critical screen
 >
 > FirstSyncScreen.tsx
 >
@@ -1640,11 +1634,11 @@ for graceful degradation:
 >
 > TransactionsScreen.tsx
 >
-> TransactionDetailScreen.tsx ← new in V2
+> TransactionDetailScreen.tsx â† new in V2
 >
 > SettingsScreen.tsx
 >
-> ReportsScreen.tsx ← Phase 2 only
+> ReportsScreen.tsx â† Phase 2 only
 >
 > components/
 >
@@ -1668,7 +1662,7 @@ for graceful degradation:
 >
 > status/
 >
-> SyncStatusIndicator.tsx ← new in V2
+> SyncStatusIndicator.tsx â† new in V2
 >
 > badges/
 >
@@ -1686,7 +1680,7 @@ for graceful degradation:
 >
 > hooks/
 >
-> useSmsSync.ts ← core logic
+> useSmsSync.ts â† core logic
 >
 > useDashboard.ts
 >
@@ -1696,7 +1690,7 @@ for graceful degradation:
 >
 > supabase.ts
 >
-> smsParser.ts ← built first
+> smsParser.ts â† built first
 >
 > formatCurrency.ts
 >
@@ -1704,7 +1698,7 @@ for graceful degradation:
 >
 > store/
 >
-> index.ts ← Zustand
+> index.ts â† Zustand
 >
 > theme/
 >
@@ -1900,7 +1894,7 @@ for graceful degradation:
   **No transactions      New M-Pesa payments will appear here
   empty body**           automatically.
 
-  **View all             View all →
+  **View all             View all â†’
   transactions link**    
 
   **Section heading:     Recent Payments

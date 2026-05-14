@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import supabase from '../lib/supabase.js';
+import { getNairobiDayWindow } from '../lib/time.js';
 
 const router = Router();
 
@@ -8,14 +9,14 @@ router.get('/:businessId', async (req, res) => {
   const { businessId } = req.params;
 
   try {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const today = getNairobiDayWindow();
 
     const { data: todayTx, error } = await supabase
       .from('transactions')
       .select('amount, type, sender_name')
       .eq('business_id', businessId)
-      .gte('timestamp', todayStart);
+      .gte('timestamp', today.start)
+      .lt('timestamp', today.end);
 
     if (error) {
       return res.status(400).json({ error: error.message });
@@ -39,7 +40,7 @@ router.get('/:businessId', async (req, res) => {
     const topSender = Object.entries(senderCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
 
     res.json({
-      date: todayStart.slice(0, 10),
+      date: today.date,
       totalIncome,
       txCount,
       byType,

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Platform } from 'react-native';
+import { View, Text, StyleSheet, Animated, Platform, TouchableOpacity } from 'react-native';
 import { readSmsMessages } from '../../lib/smsReader';
 import { parseMpesaSMS } from '../../lib/smsParser';
 import { supabase } from '../../lib/supabase';
@@ -8,6 +8,7 @@ import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { radius } from '../../theme/shadows';
+import { markFullHistorySynced, markLastSyncNow } from '../../lib/syncState';
 import * as Crypto from 'expo-crypto';
 
 export default function FirstSyncScreen({ navigation, route }) {
@@ -16,6 +17,7 @@ export default function FirstSyncScreen({ navigation, route }) {
   const [messageCount, setMessageCount] = useState(0);
   const [importing, setImporting] = useState(true);
   const [imported, setImported] = useState(0);
+  const [errorMessage, setErrorMessage] = useState('');
   const progressAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -53,6 +55,8 @@ export default function FirstSyncScreen({ navigation, route }) {
         .filter(Boolean);
 
       if (parsed.length === 0) {
+        await markFullHistorySynced();
+        await markLastSyncNow();
         finishOnboarding();
         return;
       }
@@ -78,6 +82,7 @@ export default function FirstSyncScreen({ navigation, route }) {
             sender_name: tx.senderName,
             sender_phone: tx.senderPhone,
             account_ref: tx.accountRef,
+            mpesa_code: tx.mpesaCode,
             timestamp: tx.timestamp.toISOString(),
             balance: tx.balance,
             source: 'sms',
@@ -88,17 +93,26 @@ export default function FirstSyncScreen({ navigation, route }) {
           }))
         );
 
-        await supabase
+        const { error } = await supabase
           .from('transactions')
           .upsert(transactions, { onConflict: 'sms_hash' });
+
+        if (error) {
+          throw error;
+        }
 
         processedCount += batch.length;
         setImported(processedCount);
       }
 
       setLastSync();
+      await markFullHistorySynced();
+      await markLastSyncNow();
     } catch (err) {
       console.error('Initial sync error:', err);
+      setErrorMessage('SMS import could not start on this build. You can continue and sync again after the Android build is updated.');
+      setImporting(false);
+      return;
     }
 
     setImporting(false);
@@ -143,13 +157,22 @@ export default function FirstSyncScreen({ navigation, route }) {
         </Text>
       )}
 
+      {errorMessage ? (
+        <>
+          <Text style={styles.errorText}>{errorMessage}</Text>
+          <TouchableOpacity style={styles.continueButton} onPress={finishOnboarding}>
+            <Text style={styles.continueText}>Continue to dashboard</Text>
+          </TouchableOpacity>
+        </>
+      ) : null}
+
       {!permissionGranted && (
         <Text style={styles.importing}>
           You can enable SMS access later in Settings.
         </Text>
       )}
 
-      <Text style={styles.hint}>This only takes a few seconds.</Text>
+      {!errorMessage && <Text style={styles.hint}>This only takes a few seconds.</Text>}
     </View>
   );
 }
@@ -202,5 +225,23 @@ const styles = StyleSheet.create({
     color: colors.grayText,
     textAlign: 'center',
     marginTop: spacing.xxl,
+  },
+  errorText: {
+    ...typography.bodyM,
+    color: colors.red,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: spacing.lg,
+  },
+  continueButton: {
+    backgroundColor: colors.green,
+    borderRadius: radius.md + 2,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+  },
+  continueText: {
+    ...typography.bodyM,
+    color: colors.white,
+    fontWeight: '700',
   },
 });

@@ -15,6 +15,7 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const setBusiness = useBusinessStore((s) => s.setBusiness);
+  const completeOnboarding = useBusinessStore((s) => s.completeOnboarding);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -36,33 +37,66 @@ export default function LoginScreen({ navigation }) {
         return;
       }
 
+      const metadata = data.user.user_metadata || {};
+      const ownerName = metadata.full_name || '';
+      const businessName = metadata.business_name || 'My Business';
+      const ownerPhone = metadata.owner_phone || '';
+
+      if (!data.user.email_confirmed_at) {
+        setBusiness({ ownerName, ownerEmail: data.user.email, businessName, ownerPhone });
+        navigation.navigate('VerifyEmail');
+        return;
+      }
+
       // Check if user has a business record
       const { data: bizData, error: bizError } = await supabase
         .from('businesses')
         .select('*')
         .eq('user_id', data.user.id)
-        .single();
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
 
-      if (bizError && bizError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+      if (bizError) {
         console.error('Error fetching business:', bizError);
       }
 
       if (bizData) {
-        // User has a business, update store and go to main app if onboarding is done
-        // Wait, onboarding complete is usually set at the end of FirstSync
         setBusiness({
           businessId: bizData.id,
-          ownerName: bizData.owner_name || '', // Note: DB schema didn't have owner_name, it's 'name' for business, wait let me check schema
+          ownerName,
+          ownerEmail: data.user.email,
+          ownerPhone: bizData.owner_phone || ownerPhone,
           businessName: bizData.name,
           enabledTypes: bizData.enabled_types || ['till', 'paybill', 'pochi', 'p2p'],
         });
-        
-        // If they have a business, they probably finished onboarding.
-        // We can just set onboarding complete to true.
-        useBusinessStore.getState().setOnboardingComplete(true);
+        completeOnboarding();
+        navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
       } else {
-        // Logged in but no business record yet (maybe they abandoned signup at VerifyEmail)
-        navigation.navigate('VerifyEmail');
+        const { data: newBiz, error: createError } = await supabase
+          .from('businesses')
+          .insert({
+            user_id: data.user.id,
+            name: businessName,
+            owner_phone: ownerPhone,
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          Alert.alert('Setup failed', createError.message);
+          return;
+        }
+
+        setBusiness({
+          businessId: newBiz.id,
+          ownerName,
+          ownerEmail: data.user.email,
+          ownerPhone: newBiz.owner_phone || ownerPhone,
+          businessName: newBiz.name,
+          enabledTypes: newBiz.enabled_types || ['till', 'paybill', 'pochi', 'p2p'],
+        });
+        navigation.navigate('PaymentType');
       }
     } catch (err) {
       Alert.alert('Error', 'Something went wrong. Please try again.');

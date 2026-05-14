@@ -1,6 +1,7 @@
 import express from 'express';
 import supabase from '../lib/supabase.js';
 import { sendDailySummary } from '../lib/notifications.js';
+import { getNairobiDayWindow } from '../lib/time.js';
 
 const router = express.Router();
 
@@ -17,8 +18,7 @@ router.get('/daily-summary', async (req, res) => {
   console.log('[CRON] Running daily summary job from Vercel trigger...');
 
   try {
-    const today = new Date().toISOString().slice(0, 10);
-    const todayStart = `${today}T00:00:00.000Z`;
+    const today = getNairobiDayWindow();
 
     // Get all businesses with notifications enabled
     const { data: businesses, error: bizError } = await supabase
@@ -37,7 +37,8 @@ router.get('/daily-summary', async (req, res) => {
           .from('transactions')
           .select('amount, sender_name')
           .eq('business_id', biz.id)
-          .gte('timestamp', todayStart);
+          .gte('timestamp', today.start)
+          .lt('timestamp', today.end);
 
         if (!transactions || transactions.length === 0) continue;
 
@@ -49,7 +50,7 @@ router.get('/daily-summary', async (req, res) => {
         const topSender = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
 
         const summary = {
-          date: today,
+          date: today.date,
           totalIncome: transactions.reduce((s, t) => s + Number(t.amount), 0),
           txCount: transactions.length,
           topSender,
@@ -63,7 +64,7 @@ router.get('/daily-summary', async (req, res) => {
           .from('daily_summaries')
           .upsert({
             business_id: biz.id,
-            date: today,
+            date: today.date,
             total_income: summary.totalIncome,
             tx_count: summary.txCount,
             top_sender: summary.topSender,

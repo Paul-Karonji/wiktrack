@@ -9,6 +9,7 @@ export const useBusinessStore = create(
       businessId: null,
       businessName: '',
       ownerName: '',
+      ownerEmail: '',
       ownerPhone: '',
       // Onboarding state
       onboardingComplete: false,
@@ -32,6 +33,7 @@ export const useBusinessStore = create(
       setPushToken: (token) => set({ pushToken: token }),
       setNotificationsEnabled: (enabled) => set({ notificationsEnabled: enabled }),
       completeOnboarding: () => set({ onboardingComplete: true }),
+      setOnboardingComplete: (value) => set({ onboardingComplete: value }),
 
       // Reset
       logout: () =>
@@ -39,6 +41,7 @@ export const useBusinessStore = create(
           businessId: null,
           businessName: '',
           ownerName: '',
+          ownerEmail: '',
           ownerPhone: '',
           onboardingComplete: false,
           enabledTypes: ['pochi', 'p2p', 'till', 'paybill'],

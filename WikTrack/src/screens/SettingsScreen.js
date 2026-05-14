@@ -13,6 +13,7 @@ import { shadows, radius } from '../theme/shadows';
 import { formatRelativeTime } from '../lib/formatDate';
 import { useBusinessStore } from '../store';
 import { supabase } from '../lib/supabase';
+import { useSmsSync } from '../hooks/useSmsSync';
 import ToggleRow from '../components/shared/ToggleRow';
 
 const PAYMENT_TYPES = [
@@ -27,6 +28,7 @@ export default function SettingsScreen({ navigation }) {
     businessName, ownerName, ownerPhone, enabledTypes, lastSyncAt,
     notificationsEnabled, setNotificationsEnabled, setEnabledTypes, businessId, logout,
   } = useBusinessStore();
+  const { sync } = useSmsSync(false);
 
   const togglePaymentType = (key) => {
     const updated = enabledTypes.includes(key)
@@ -108,11 +110,23 @@ export default function SettingsScreen({ navigation }) {
           <TouchableOpacity 
             style={styles.syncRow} 
             onPress={async () => {
-              const { useSmsSync } = require('../hooks/useSmsSync');
-              // Note: This is a hacky way to use a hook outside of component top-level, 
-              // better to use the sync function from props or a higher level.
-              // Actually, I'll just explain to the user to use pull-to-refresh.
-              Alert.alert('Syncing', 'Pull down on the Home screen to sync your latest M-Pesa messages.');
+              try {
+                const result = await sync({ fullHistory: true });
+                if (result.success) {
+                  const scope = result.fullHistory ? 'all SMS history' : 'new messages';
+                  Alert.alert(
+                    'Sync complete',
+                    `Checked ${scope}. Read ${result.messagesRead} M-Pesa SMS and imported ${result.parsedCount} payments.`
+                  );
+                } else {
+                  Alert.alert(
+                    'Sync failed',
+                    `${result.stage || 'unknown'}: ${result.errorMessage || 'Could not sync M-Pesa messages.'}`
+                  );
+                }
+              } catch (err) {
+                Alert.alert('Sync failed', err.message || 'Could not sync M-Pesa messages.');
+              }
             }}
           >
             <RefreshCw size={20} color={colors.navy} />

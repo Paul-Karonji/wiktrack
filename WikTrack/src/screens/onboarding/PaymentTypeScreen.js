@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Alert, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { CheckCircle2, Circle } from 'lucide-react-native';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
@@ -26,14 +26,25 @@ export default function PaymentTypeScreen({ navigation }) {
   };
 
   const handleContinue = async () => {
+    if (!businessId) {
+      Alert.alert(
+        'Setup not complete',
+        'Please verify your email or log in again so WikTrack can create your business profile.'
+      );
+      return;
+    }
+
     setEnabledTypes(selected);
 
     // Save to Supabase
-    if (businessId) {
-      await supabase
-        .from('businesses')
-        .update({ enabled_types: selected })
-        .eq('id', businessId);
+    const { error } = await supabase
+      .from('businesses')
+      .update({ enabled_types: selected })
+      .eq('id', businessId);
+
+    if (error) {
+      Alert.alert('Could not save', error.message);
+      return;
     }
 
     navigation.navigate('SmsPermission');

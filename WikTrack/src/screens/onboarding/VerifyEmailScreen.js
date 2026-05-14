@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native';
@@ -16,39 +16,74 @@ export default function VerifyEmailScreen({ navigation }) {
   const setBusiness = useBusinessStore((s) => s.setBusiness);
   const businessName = useBusinessStore((s) => s.businessName);
   const ownerName = useBusinessStore((s) => s.ownerName);
+  const ownerEmail = useBusinessStore((s) => s.ownerEmail);
   const ownerPhone = useBusinessStore((s) => s.ownerPhone);
+
+  const createOrLoadBusiness = async (user) => {
+    const metadata = user?.user_metadata || {};
+    const resolvedBusinessName = businessName || metadata.business_name || 'My Business';
+    const resolvedOwnerName = ownerName || metadata.full_name || '';
+    const resolvedOwnerPhone = ownerPhone || metadata.owner_phone || '';
+
+    const { data: existing, error: existingError } = await supabase
+      .from('businesses')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingError) throw existingError;
+
+    if (existing) {
+      setBusiness({
+        businessId: existing.id,
+        businessName: existing.name,
+        ownerName: resolvedOwnerName,
+        ownerEmail: user.email,
+        ownerPhone: existing.owner_phone || resolvedOwnerPhone,
+        enabledTypes: existing.enabled_types || ['till', 'paybill', 'pochi', 'p2p'],
+      });
+      return existing;
+    }
+
+    const { data: biz, error: bizError } = await supabase
+      .from('businesses')
+      .insert({
+        user_id: user.id,
+        name: resolvedBusinessName,
+        owner_phone: resolvedOwnerPhone,
+      })
+      .select()
+      .single();
+
+    if (bizError) throw bizError;
+
+    setBusiness({
+      businessId: biz.id,
+      businessName: biz.name,
+      ownerName: resolvedOwnerName,
+      ownerEmail: user.email,
+      ownerPhone: biz.owner_phone || resolvedOwnerPhone,
+    });
+
+    return biz;
+  };
 
   const checkVerification = async () => {
     setChecking(true);
     try {
-      const { data: { session }, error } = await supabase.auth.getSession();
+      await supabase.auth.refreshSession();
+      const { data: { user }, error } = await supabase.auth.getUser();
 
       if (error) {
         Alert.alert('Error', error.message);
-        setChecking(false);
         return;
       }
 
-      if (session?.user?.email_confirmed_at) {
+      if (user?.email_confirmed_at) {
         setVerified(true);
-
-        // Create business record now that email is verified
-        const { data: biz, error: bizError } = await supabase
-          .from('businesses')
-          .insert({
-            user_id: session.user.id,
-            name: businessName,
-            owner_phone: ownerPhone || '',
-          })
-          .select()
-          .single();
-
-        if (bizError) {
-          console.error('Business creation error:', bizError);
-        } else {
-          setBusiness({ businessId: biz.id });
-        }
-
+        await createOrLoadBusiness(user);
         setTimeout(() => navigation.navigate('PaymentType'), 1000);
       } else {
         Alert.alert(
@@ -67,16 +102,19 @@ export default function VerifyEmailScreen({ navigation }) {
   const handleResend = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user?.email) {
+      const email = session?.user?.email || ownerEmail;
+      if (email) {
         const { error } = await supabase.auth.resend({
           type: 'signup',
-          email: session.user.email,
+          email,
         });
         if (error) {
           Alert.alert('Error', error.message);
         } else {
           Alert.alert('Sent', 'A new verification email has been sent.');
         }
+      } else {
+        Alert.alert('Email missing', 'Please go back and enter your email again.');
       }
     } catch (err) {
       Alert.alert('Error', 'Could not resend email.');
@@ -84,8 +122,10 @@ export default function VerifyEmailScreen({ navigation }) {
   };
 
   const handleSkip = () => {
-    // Allow skipping — create business without verified email
-    navigation.navigate('PaymentType');
+    Alert.alert(
+      'Email verification required',
+      'Please verify your email first so WikTrack can create your business profile and sync payments safely.'
+    );
   };
 
   return (

@@ -15,8 +15,8 @@ dist/
 web-build/
 
 # Native build outputs (EAS generates these remotely)
-android/
-ios/
+/android/
+/ios/
 
 # Build artifacts
 *.apk

@@ -1,14 +1,14 @@
 import cron from 'node-cron';
 import supabase from '../lib/supabase.js';
 import { sendDailySummary } from '../lib/notifications.js';
+import { getNairobiDayWindow } from '../lib/time.js';
 
 // Runs every day at 17:00 UTC = 20:00 EAT (Kenya time)
 export function startDailySummaryCron() {
   cron.schedule('0 17 * * *', async () => {
     console.log('[CRON] Running daily summary job...');
 
-    const today = new Date().toISOString().slice(0, 10);
-    const todayStart = `${today}T00:00:00.000Z`;
+    const today = getNairobiDayWindow();
 
     // Get all businesses with notifications enabled
     const { data: businesses } = await supabase
@@ -25,7 +25,8 @@ export function startDailySummaryCron() {
           .from('transactions')
           .select('amount, sender_name')
           .eq('business_id', biz.id)
-          .gte('timestamp', todayStart);
+          .gte('timestamp', today.start)
+          .lt('timestamp', today.end);
 
         if (!transactions || transactions.length === 0) continue;
 
@@ -37,7 +38,7 @@ export function startDailySummaryCron() {
         const topSender = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
 
         const summary = {
-          date: today,
+          date: today.date,
           totalIncome: transactions.reduce((s, t) => s + Number(t.amount), 0),
           txCount: transactions.length,
           topSender,
@@ -51,7 +52,7 @@ export function startDailySummaryCron() {
           .from('daily_summaries')
           .upsert({
             business_id: biz.id,
-            date: today,
+            date: today.date,
             total_income: summary.totalIncome,
             tx_count: summary.txCount,
             top_sender: summary.topSender,

@@ -32,11 +32,31 @@ export default function CreateAccountScreen({ navigation }) {
 
     setLoading(true);
 
+    // Normalize phone if provided (optional field)
+    let normalizedPhone = '';
+    if (phone.trim()) {
+      normalizedPhone = phone.replace(/\s/g, '');
+      if (normalizedPhone.startsWith('0')) {
+        normalizedPhone = '+254' + normalizedPhone.slice(1);
+      } else if (normalizedPhone.startsWith('254')) {
+        normalizedPhone = '+' + normalizedPhone;
+      } else if (!normalizedPhone.startsWith('+')) {
+        normalizedPhone = '+254' + normalizedPhone;
+      }
+    }
+
     try {
       // Sign up with email + password via Supabase
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const { error: authError } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
+        options: {
+          data: {
+            full_name: fullName.trim(),
+            business_name: businessName.trim(),
+            owner_phone: normalizedPhone,
+          },
+        },
       });
 
       if (authError) {
@@ -45,22 +65,10 @@ export default function CreateAccountScreen({ navigation }) {
         return;
       }
 
-      // Normalize phone if provided (optional field)
-      let normalizedPhone = '';
-      if (phone.trim()) {
-        normalizedPhone = phone.replace(/\s/g, '');
-        if (normalizedPhone.startsWith('0')) {
-          normalizedPhone = '+254' + normalizedPhone.slice(1);
-        } else if (normalizedPhone.startsWith('254')) {
-          normalizedPhone = '+' + normalizedPhone;
-        } else if (!normalizedPhone.startsWith('+')) {
-          normalizedPhone = '+254' + normalizedPhone;
-        }
-      }
-
       // Store in Zustand — business record created after email verification
       setBusiness({
         ownerName: fullName.trim(),
+        ownerEmail: email.trim().toLowerCase(),
         ownerPhone: normalizedPhone,
         businessName: businessName.trim(),
       });

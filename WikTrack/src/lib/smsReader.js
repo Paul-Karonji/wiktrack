@@ -1,18 +1,13 @@
-import SmsReaderModule from '../../modules/sms-reader';
-import { Alert } from 'react-native';
+import SmsReaderModule from 'sms-reader';
+
+export function isSmsReaderAvailable() {
+  return Boolean(SmsReaderModule?.readSms);
+}
 
 export async function readSmsMessages(filter) {
-  try {
-    if (SmsReaderModule) {
-      const messages = await SmsReaderModule.readSms(filter);
-      Alert.alert('Debug (Native)', `Read ${messages.length} SMS messages.`);
-      return messages;
-    } else {
-      Alert.alert('Debug Error', 'SmsReaderModule is null (Native module did not load).');
-    }
-  } catch (error) {
-    Alert.alert('Debug Crash', `Failed to read SMS: ${error.message}`);
-    console.error('Failed to read SMS via native module:', error);
+  if (!isSmsReaderAvailable()) {
+    throw new Error('SmsReader native module is unavailable. Rebuild the Android app after native autolinking.');
   }
-  return [];
+
+  return SmsReaderModule.readSms(filter);
 }

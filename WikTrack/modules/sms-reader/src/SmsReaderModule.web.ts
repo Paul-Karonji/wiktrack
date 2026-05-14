@@ -16,4 +16,4 @@ class SmsReaderModule extends NativeModule<SmsReaderModuleEvents> {
   }
 };
 
-export default registerWebModule(SmsReaderModule, 'SmsReaderModule');
+export default registerWebModule(SmsReaderModule, 'SmsReader');

@@ -13,18 +13,42 @@ const COLOR_MAP = {
   gray: { bg: '#F1F5F9', text: colors.grayText },
 };
 
-export default function FilterChip({ label, active, color = 'gray', onPress }) {
+export default function FilterChip({
+  label,
+  active,
+  color = 'gray',
+  onPress,
+  compact = false,
+  style: containerStyle,
+}) {
   const activeStyle = COLOR_MAP.green;
   const inactiveStyle = COLOR_MAP[color] || COLOR_MAP.gray;
-  const style = active ? activeStyle : inactiveStyle;
+  const chipStyle = active ? activeStyle : inactiveStyle;
 
   return (
     <TouchableOpacity
-      style={[styles.chip, { backgroundColor: style.bg }]}
+      style={[
+        styles.chip,
+        compact && styles.compactChip,
+        containerStyle,
+        { backgroundColor: chipStyle.bg },
+      ]}
       onPress={onPress}
       activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      hitSlop={4}
     >
-      <Text style={[styles.label, { color: style.text }]}>{label}</Text>
+      <Text
+        style={[
+          styles.label,
+          compact && styles.compactLabel,
+          { color: chipStyle.text },
+        ]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -36,9 +60,15 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+  },
+  compactChip: {
+    height: 32,
+    paddingHorizontal: 14,
   },
   label: {
     ...typography.badge,
+  },
+  compactLabel: {
+    fontSize: 11,
   },
 });

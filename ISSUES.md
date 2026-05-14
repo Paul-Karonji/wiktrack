@@ -6,6 +6,7 @@ This document records the technical challenges, bugs, and resolutions encountere
 - Dashboard and transaction history visibility was tightened:
   - Dashboard now refetches when Home regains focus, fixing the stale state where parsed/imported transactions were visible on the Transactions page but not after returning to Dashboard.
   - Transactions now has visible date filter chips for All time, Today, 7 days, This month, and year filters for the current plus two previous years.
+  - Transactions filter buttons were visually cleaned up after a mobile screenshot showed the rows looking squeezed: type filters now wrap into a responsive grid and date filters use compact wrapping chips.
   - Tapping Today's Income on Dashboard applies the Today filter on Transactions and clears the navigation flag after applying it.
   - Historical transaction group headers and row timestamps now include the year for prior-year records, e.g. `Apr 16, 2024`.
   - Recent Payments empty state copy no longer says "today" because that list shows the latest transactions overall.
@@ -14,6 +15,12 @@ This document records the technical challenges, bugs, and resolutions encountere
 - Returning-user login now uses the real onboarding store action and no longer calls the missing `setOnboardingComplete` method.
 - Vercel Cron now runs at `0 17 * * *`, which is 8:00 PM EAT, and backend daily summaries use Nairobi day boundaries.
 - Debug SMS alerts were removed from production sync; Settings "Sync now" now triggers a real sync.
+
+## Current Issue - Local Expo Metro TypeScript Dependency Check
+**Status:** Environment/dependency note, not an app architecture change
+- **Observation:** Running local `npm run start -- --port 8081` reached Expo/Metro, then Expo stopped with a message asking to install `typescript@~5.9.2` and `@types/react@~19.1.10`.
+- **Cause:** The app is still using Expo. Expo detects TypeScript files in the local SMS module (`modules/sms-reader`) and requires the TypeScript helper packages for local Metro startup.
+- **Resolution:** Install the packages with `npx expo install typescript @types/react` if local `expo start` is blocked. No package changes were made during the filter UI pass.
 
 ## Current Issue - Sync Scope After Native Module Fix
 **Status:** Fix applied / needs new APK confirmation

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, SectionList, StatusBar,
-  TouchableOpacity, TextInput, ScrollView,
+  TouchableOpacity, TextInput,
 } from 'react-native';
 import { Search, X } from 'lucide-react-native';
 import { colors } from '../theme/colors';
@@ -138,37 +138,33 @@ export default function TransactionsScreen({ navigation, route }) {
       )}
 
       {/* Filter Chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}
-      >
-        {FILTERS.map((f) => (
-          <FilterChip
-            key={f.key}
-            label={f.label}
-            active={filter === f.key}
-            color={f.color}
-            onPress={() => setFilter(f.key)}
-          />
-        ))}
-      </ScrollView>
+      <View style={styles.filterPanel}>
+        <View style={styles.filterRow}>
+          {FILTERS.map((f) => (
+            <FilterChip
+              key={f.key}
+              label={f.label}
+              active={filter === f.key}
+              color={f.color}
+              style={styles.typeChip}
+              onPress={() => setFilter(f.key)}
+            />
+          ))}
+        </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.dateFilterRow}
-      >
-        {DATE_FILTERS.map((f) => (
-          <FilterChip
-            key={f.key}
-            label={f.label}
-            active={activeDateFilter === f.key}
-            color="gray"
-            onPress={() => applyDateFilter(f.key)}
-          />
-        ))}
-      </ScrollView>
+        <View style={styles.dateFilterRow}>
+          {DATE_FILTERS.map((f) => (
+            <FilterChip
+              key={f.key}
+              label={f.label}
+              active={activeDateFilter === f.key}
+              color="gray"
+              compact
+              onPress={() => applyDateFilter(f.key)}
+            />
+          ))}
+        </View>
+      </View>
 
       {/* Summary Strip */}
       <View style={styles.summaryStrip}>
@@ -272,15 +268,27 @@ const styles = StyleSheet.create({
     color: colors.navy,
     paddingVertical: spacing.xs,
   },
+  filterPanel: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.md,
+    rowGap: spacing.sm,
+  },
   filterRow: {
     flexDirection: 'row',
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.sm,
+    flexWrap: 'wrap',
+    columnGap: spacing.sm,
+    rowGap: spacing.sm,
+  },
+  typeChip: {
+    flexBasis: '30%',
+    flexGrow: 1,
   },
   dateFilterRow: {
     flexDirection: 'row',
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.md,
+    flexWrap: 'wrap',
+    columnGap: spacing.sm,
+    rowGap: spacing.sm,
   },
   summaryStrip: {
     flexDirection: 'row',

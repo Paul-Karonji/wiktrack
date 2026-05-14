@@ -84,9 +84,12 @@ export function useTransactions() {
   };
 }
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 function groupByDate(transactions) {
   const groups = {};
   const now = new Date();
+  const currentYear = now.getFullYear();
   const todayStr = now.toDateString();
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
@@ -111,8 +114,8 @@ function groupByDate(transactions) {
     } else if (txDate >= startOfWeek) {
       groupKey = 'This Week';
     } else {
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      groupKey = `${months[txDate.getMonth()]} ${txDate.getDate()}`;
+      const yearSuffix = txDate.getFullYear() === currentYear ? '' : `, ${txDate.getFullYear()}`;
+      groupKey = `${MONTHS[txDate.getMonth()]} ${txDate.getDate()}${yearSuffix}`;
     }
 
     if (!groups[groupKey]) {

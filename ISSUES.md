@@ -3,6 +3,12 @@
 This document records the technical challenges, bugs, and resolutions encountered during the finalization of the WikTrack production build.
 
 ## Current Fix Pass - 2026-05-14
+- Dashboard and transaction history visibility was tightened:
+  - Dashboard now refetches when Home regains focus, fixing the stale state where parsed/imported transactions were visible on the Transactions page but not after returning to Dashboard.
+  - Transactions now has visible date filter chips for All time, Today, 7 days, This month, and year filters for the current plus two previous years.
+  - Tapping Today's Income on Dashboard applies the Today filter on Transactions and clears the navigation flag after applying it.
+  - Historical transaction group headers and row timestamps now include the year for prior-year records, e.g. `Apr 16, 2024`.
+  - Recent Payments empty state copy no longer says "today" because that list shows the latest transactions overall.
 - Native SMS loading was hardened by importing the `sms-reader` package path, explicitly declaring `expo.autolinking.nativeModulesDir`, and confirming local Android autolinking resolves `expo.modules.smsreader.SmsReaderModule`.
 - Email verification now refreshes the Supabase session, fetches the current user, avoids duplicate business rows, and blocks continuing without a business profile.
 - Returning-user login now uses the real onboarding store action and no longer calls the missing `setOnboardingComplete` method.
@@ -55,6 +61,14 @@ This document records the technical challenges, bugs, and resolutions encountere
 - **Issue:** Pulling to refresh resulted in 0 transactions despite having M-Pesa messages.
 - **Cause:** The app is an **Income Tracker**. It is designed to strictly parse incoming payments (`"received from"`). The test messages on the user's phone were outgoing payments (`"paid to"`), which the parser correctly ignores.
 - **Resolution:** Added diagnostic alerts to the app to surface the raw number of messages read vs. parsed.
+
+**Follow-up - 2026-05-14:** A later device test showed parsed income transactions visible on the Transactions page but not immediately visible on Dashboard. Home now refreshes dashboard data whenever the tab regains focus, and the Recent Payments empty state no longer says "today" because that list shows the latest transactions overall.
+
+## 4a. Historical Transactions Grouped Ambiguously
+**Status:** Fix applied / needs new APK confirmation
+- **Issue:** Imported old SMS history, such as April 16, 2024 messages, displayed under a generic `Apr 16` group. That made prior-year transactions look like current-year transactions.
+- **Cause:** Transaction section headers and row date labels omitted the year for all older records.
+- **Resolution:** Prior-year transactions now render with the year in both group headers and row timestamps. Transactions also has date filter chips so older imported history can be narrowed by year or recent period.
 
 ## 5. Notification Permission Sequence
 **Status:** ✅ Resolved

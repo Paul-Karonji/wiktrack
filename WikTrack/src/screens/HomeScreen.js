@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Wallet, Bell, TrendingUp, Calendar } from 'lucide-react-native';
 import { BarChart } from 'react-native-chart-kit';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
 import { spacing } from '../theme/spacing';
@@ -39,6 +40,14 @@ export default function HomeScreen({ navigation }) {
       );
     }
   }, [businessId]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (businessId) {
+        refresh();
+      }
+    }, [businessId, refresh])
+  );
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -187,8 +196,8 @@ export default function HomeScreen({ navigation }) {
             </>
           ) : recentTransactions.length === 0 ? (
             <EmptyState
-              heading="No payments yet today"
-              body="New M-Pesa payments will appear here automatically."
+              heading="No payments found"
+              body="Synced M-Pesa income will appear here automatically."
               ctaText="Check sync settings"
               onCtaPress={() => navigation.navigate('Settings')}
             />

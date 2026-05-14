@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, SectionList, StatusBar,
-  TouchableOpacity, TextInput,
+  TouchableOpacity, TextInput, ScrollView,
 } from 'react-native';
 import { Search, X } from 'lucide-react-native';
 import { colors } from '../theme/colors';
@@ -23,12 +23,80 @@ const FILTERS = [
   { key: 'paybill', label: 'Paybill', color: 'blue' },
 ];
 
+const CURRENT_YEAR = new Date().getFullYear();
+const DATE_FILTERS = [
+  { key: 'all', label: 'All time' },
+  { key: 'today', label: 'Today' },
+  { key: '7d', label: '7 days' },
+  { key: 'month', label: 'This month' },
+  { key: 'year0', label: `${CURRENT_YEAR}` },
+  { key: 'year1', label: `${CURRENT_YEAR - 1}` },
+  { key: 'year2', label: `${CURRENT_YEAR - 2}` },
+];
+
+function endOfDay(date) {
+  const next = new Date(date);
+  next.setHours(23, 59, 59, 999);
+  return next;
+}
+
+function rangeForDateFilter(key) {
+  const now = new Date();
+
+  if (key === 'all') return null;
+
+  if (key === 'today') {
+    return {
+      start: new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString(),
+      end: endOfDay(now).toISOString(),
+    };
+  }
+
+  if (key === '7d') {
+    const start = new Date(now);
+    start.setDate(now.getDate() - 6);
+    start.setHours(0, 0, 0, 0);
+    return { start: start.toISOString(), end: endOfDay(now).toISOString() };
+  }
+
+  if (key === 'month') {
+    return {
+      start: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(),
+      end: endOfDay(now).toISOString(),
+    };
+  }
+
+  if (key.startsWith('year')) {
+    const offset = Number(key.replace('year', ''));
+    const year = CURRENT_YEAR - offset;
+    return {
+      start: new Date(year, 0, 1).toISOString(),
+      end: new Date(year, 11, 31, 23, 59, 59, 999).toISOString(),
+    };
+  }
+
+  return null;
+}
+
 export default function TransactionsScreen({ navigation, route }) {
   const [showSearch, setShowSearch] = useState(false);
+  const [activeDateFilter, setActiveDateFilter] = useState('all');
   const {
     loading, groupedTransactions, totalAmount, totalCount,
-    filter, setFilter, searchQuery, setSearchQuery, refresh,
+    filter, setFilter, searchQuery, setSearchQuery, setDateRange, refresh,
   } = useTransactions();
+
+  const applyDateFilter = (key) => {
+    setActiveDateFilter(key);
+    setDateRange(rangeForDateFilter(key));
+  };
+
+  useEffect(() => {
+    if (route?.params?.filterToday) {
+      applyDateFilter('today');
+      navigation.setParams({ filterToday: undefined });
+    }
+  }, [navigation, route?.params?.filterToday]);
 
   return (
     <View style={styles.container}>
@@ -70,7 +138,11 @@ export default function TransactionsScreen({ navigation, route }) {
       )}
 
       {/* Filter Chips */}
-      <View style={styles.filterRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterRow}
+      >
         {FILTERS.map((f) => (
           <FilterChip
             key={f.key}
@@ -80,7 +152,23 @@ export default function TransactionsScreen({ navigation, route }) {
             onPress={() => setFilter(f.key)}
           />
         ))}
-      </View>
+      </ScrollView>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.dateFilterRow}
+      >
+        {DATE_FILTERS.map((f) => (
+          <FilterChip
+            key={f.key}
+            label={f.label}
+            active={activeDateFilter === f.key}
+            color="gray"
+            onPress={() => applyDateFilter(f.key)}
+          />
+        ))}
+      </ScrollView>
 
       {/* Summary Strip */}
       <View style={styles.summaryStrip}>
@@ -107,6 +195,7 @@ export default function TransactionsScreen({ navigation, route }) {
           onCtaPress={() => {
             setFilter('all');
             setSearchQuery('');
+            applyDateFilter('all');
           }}
         />
       ) : (
@@ -186,7 +275,12 @@ const styles = StyleSheet.create({
   filterRow: {
     flexDirection: 'row',
     paddingHorizontal: spacing.xl,
-    marginBottom: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  dateFilterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.md,
   },
   summaryStrip: {
     flexDirection: 'row',

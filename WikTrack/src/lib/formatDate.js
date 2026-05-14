@@ -20,6 +20,10 @@ function isThisWeek(date) {
   return date >= startOfWeek;
 }
 
+function isThisYear(date) {
+  return date.getFullYear() === new Date().getFullYear();
+}
+
 export function formatTime(date) {
   if (!(date instanceof Date)) date = new Date(date);
   return date.toLocaleTimeString('en-KE', { hour: 'numeric', minute: '2-digit', hour12: true });
@@ -37,7 +41,8 @@ export function formatTransactionDate(date) {
   if (isThisWeek(date)) {
     return `${DAYS[date.getDay()]}, ${formatTime(date)}`;
   }
-  return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${formatTime(date)}`;
+  const yearSuffix = isThisYear(date) ? '' : `, ${date.getFullYear()}`;
+  return `${MONTHS[date.getMonth()]} ${date.getDate()}${yearSuffix}, ${formatTime(date)}`;
 }
 
 export function formatDetailDate(date) {
@@ -51,7 +56,8 @@ export function formatGroupHeader(date) {
   if (isToday(date)) return 'Today';
   if (isYesterday(date)) return 'Yesterday';
   if (isThisWeek(date)) return 'This Week';
-  return `${MONTHS[date.getMonth()]} ${date.getDate()}`;
+  const yearSuffix = isThisYear(date) ? '' : `, ${date.getFullYear()}`;
+  return `${MONTHS[date.getMonth()]} ${date.getDate()}${yearSuffix}`;
 }
 
 export function formatRelativeTime(date) {

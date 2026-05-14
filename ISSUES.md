@@ -14,13 +14,28 @@ This document records the technical challenges, bugs, and resolutions encountere
 - Email verification now refreshes the Supabase session, fetches the current user, avoids duplicate business rows, and blocks continuing without a business profile.
 - Returning-user login now uses the real onboarding store action and no longer calls the missing `setOnboardingComplete` method.
 - Vercel Cron now runs at `0 17 * * *`, which is 8:00 PM EAT, and backend daily summaries use Nairobi day boundaries.
+- Vercel Cron was hardened so production reports missing `CRON_SECRET`, rejects unauthorized calls cleanly, supports protected dry-run checks, returns eligible/skipped/sent/failed counts, and logs Expo push ticket failures.
 - Debug SMS alerts were removed from production sync; Settings "Sync now" now triggers a real sync.
+
+## Current Issue - Local Android Release APK Build
+**Status:** Resolved / local APK built successfully
+- **Observation:** EAS cloud builds were taking too long for fast testing.
+- **Cause:** The project is an Expo app, but this Windows machine already has a generated `WikTrack/android` Gradle project and Android SDK installed locally.
+- **Fix:** Local Gradle release builds should use the ignored `WikTrack/android/local.properties` file with `sdk.dir=C:/Users/paul/AppData/Local/Android/Sdk`, then run `WikTrack/android/gradlew.bat :app:assembleRelease`.
+- **Result:** `WikTrack/android/app/build/outputs/apk/release/app-release.apk` was built successfully. The APK is about 66 MB. No Android device was connected over `adb`, so install still needs to be done manually or after connecting a phone with USB debugging enabled.
 
 ## Current Issue - Local Expo Metro TypeScript Dependency Check
 **Status:** Environment/dependency note, not an app architecture change
 - **Observation:** Running local `npm run start -- --port 8081` reached Expo/Metro, then Expo stopped with a message asking to install `typescript@~5.9.2` and `@types/react@~19.1.10`.
 - **Cause:** The app is still using Expo. Expo detects TypeScript files in the local SMS module (`modules/sms-reader`) and requires the TypeScript helper packages for local Metro startup.
 - **Resolution:** Install the packages with `npx expo install typescript @types/react` if local `expo start` is blocked. No package changes were made during the filter UI pass.
+
+## Current Issue - Backend/App Relationship for Cron
+**Status:** Clarified / direct backend calls from app not required for daily summary cron
+- **Observation:** The Android app is linked directly to Supabase for auth, transactions, dashboard reads, settings, SMS sync, and saving the Expo push token.
+- **Cause:** The backend is not currently the app's data API. For daily summaries, the intended chain is: app saves `businesses.push_token` in Supabase, Vercel Cron calls the backend, backend reads Supabase with the service key, backend sends Expo push notifications.
+- **Fix:** Keep app data direct-to-Supabase for now and fix the cron path instead. In Vercel Dashboard, confirm project root is `wiktrack-backend`, Cron Jobs includes `/api/cron/daily-summary`, and Production env vars include `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, and `CRON_SECRET`.
+- **Verification:** Local production-mode cron smoke test passed: unauthenticated dry-run returned `401`, authorized dry-run returned `200` with count fields. Deployed backend health is `200`, and deployed unauthenticated cron returns `401`; the new detailed counters will appear after pushing and Vercel redeploys the backend changes.
 
 ## Current Issue - Sync Scope After Native Module Fix
 **Status:** Fix applied / needs new APK confirmation

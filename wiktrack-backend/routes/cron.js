@@ -5,22 +5,61 @@ import { getNairobiDayWindow } from '../lib/time.js';
 
 const router = express.Router();
 
-// This route will be triggered by Vercel Cron at 20:00 EAT
-router.get('/daily-summary', async (req, res) => {
-  // Security check: ensure the request is from Vercel Cron
-  // Only check in production, allow testing in development without secret
-  if (process.env.NODE_ENV === 'production') {
-    if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+function isProduction() {
+  return process.env.NODE_ENV === 'production';
+}
+
+function authorizeCronRequest(req, res) {
+  if (!isProduction()) return true;
+
+  if (!process.env.CRON_SECRET) {
+    console.error('[CRON] CRON_SECRET is missing in production.');
+    res.status(500).json({
+      success: false,
+      error: 'Cron is not configured: CRON_SECRET is missing.',
+    });
+    return false;
   }
 
-  console.log('[CRON] Running daily summary job from Vercel trigger...');
+  if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+    res.status(401).json({ success: false, error: 'Unauthorized' });
+    return false;
+  }
+
+  return true;
+}
+
+function getTopSender(transactions) {
+  const counts = {};
+  transactions.forEach((transaction) => {
+    if (transaction.sender_name) {
+      counts[transaction.sender_name] = (counts[transaction.sender_name] || 0) + 1;
+    }
+  });
+
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+}
+
+// Triggered by Vercel Cron at 17:00 UTC, which is 20:00 EAT.
+router.get('/daily-summary', async (req, res) => {
+  if (!authorizeCronRequest(req, res)) return;
+
+  const dryRun = req.query.dryRun === '1' || req.query.dryRun === 'true';
+  const today = getNairobiDayWindow();
+  const stats = {
+    success: true,
+    dryRun,
+    date: today.date,
+    eligibleBusinesses: 0,
+    noTransactionCount: 0,
+    sentCount: 0,
+    failedCount: 0,
+    errors: [],
+  };
+
+  console.log(`[CRON] Daily summary started for ${today.date}. dryRun=${dryRun}`);
 
   try {
-    const today = getNairobiDayWindow();
-
-    // Get all businesses with notifications enabled
     const { data: businesses, error: bizError } = await supabase
       .from('businesses')
       .select('id, owner_phone, push_token')
@@ -29,56 +68,65 @@ router.get('/daily-summary', async (req, res) => {
 
     if (bizError) throw bizError;
 
-    let sentCount = 0;
+    stats.eligibleBusinesses = businesses?.length || 0;
 
     for (const biz of businesses || []) {
       try {
-        const { data: transactions } = await supabase
+        const { data: transactions, error: txError } = await supabase
           .from('transactions')
           .select('amount, sender_name')
           .eq('business_id', biz.id)
           .gte('timestamp', today.start)
           .lt('timestamp', today.end);
 
-        if (!transactions || transactions.length === 0) continue;
+        if (txError) throw txError;
 
-        // Find top sender
-        const counts = {};
-        transactions.forEach((t) => {
-          if (t.sender_name) counts[t.sender_name] = (counts[t.sender_name] || 0) + 1;
-        });
-        const topSender = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
+        if (!transactions || transactions.length === 0) {
+          stats.noTransactionCount += 1;
+          continue;
+        }
 
         const summary = {
           date: today.date,
-          totalIncome: transactions.reduce((s, t) => s + Number(t.amount), 0),
+          totalIncome: transactions.reduce((sum, tx) => sum + Number(tx.amount), 0),
           txCount: transactions.length,
-          topSender,
+          topSender: getTopSender(transactions),
         };
 
-        await sendDailySummary(biz.push_token, summary);
-        sentCount++;
+        if (!dryRun) {
+          await sendDailySummary(biz.push_token, summary);
 
-        // Also update daily_summaries cache
-        await supabase
-          .from('daily_summaries')
-          .upsert({
-            business_id: biz.id,
-            date: today.date,
-            total_income: summary.totalIncome,
-            tx_count: summary.txCount,
-            top_sender: summary.topSender,
-          }, { onConflict: 'business_id,date' });
-      } catch (err) {
-        console.error(`[CRON] Failed for business ${biz.id}:`, err);
+          const { error: summaryError } = await supabase
+            .from('daily_summaries')
+            .upsert({
+              business_id: biz.id,
+              date: today.date,
+              total_income: summary.totalIncome,
+              tx_count: summary.txCount,
+              top_sender: summary.topSender,
+            }, { onConflict: 'business_id,date' });
+
+          if (summaryError) throw summaryError;
+        }
+
+        stats.sentCount += 1;
+      } catch (error) {
+        stats.failedCount += 1;
+        const message = error.message || String(error);
+        stats.errors.push({ businessId: biz.id, message });
+        console.error(`[CRON] Failed for business ${biz.id}:`, error);
       }
     }
 
-    console.log(`[CRON] Daily summary sent to ${sentCount} businesses.`);
-    res.status(200).json({ success: true, sentCount });
+    console.log('[CRON] Daily summary finished:', stats);
+    res.status(200).json(stats);
   } catch (error) {
     console.error('[CRON] Overall job failure:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    res.status(500).json({
+      ...stats,
+      success: false,
+      error: error.message || 'Internal Server Error',
+    });
   }
 });
 

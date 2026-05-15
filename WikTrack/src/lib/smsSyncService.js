@@ -1,8 +1,8 @@
-import * as Crypto from 'expo-crypto';
 import { parseMpesaSMS } from './smsParser';
 import { readSmsMessages } from './smsReader';
 import { supabase } from './supabase';
 import { useBusinessStore } from '../store';
+import { sha256String } from './hash';
 import {
   getLocalDashboardData,
   initLocalDatabase,
@@ -294,5 +294,5 @@ function isMpesaSender(sender = '') {
 }
 
 async function hashSms(rawSms) {
-  return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawSms);
+  return sha256String(rawSms);
 }

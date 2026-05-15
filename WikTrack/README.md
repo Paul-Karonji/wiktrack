@@ -90,6 +90,8 @@ Manual sync or incoming SMS
 
 The app asks for both `READ_SMS` and `RECEIVE_SMS`. `READ_SMS` supports full-history/manual sync; `RECEIVE_SMS` supports the Android background receiver.
 
+SMS hashes are generated through `src/lib/hash.js`. It tries Expo Crypto first, then falls back to a pure-JS SHA-256 implementation so background Headless JS sync can keep deduping safely even if the native crypto module is unavailable.
+
 ## Supabase Schema
 
 The `failed_parses` table is required for parser dead-letter uploads. It is included in the root `supabase-schema.sql`. For an existing Supabase project, run the root `supabase-failed-parses-migration.sql` once in Supabase SQL Editor.

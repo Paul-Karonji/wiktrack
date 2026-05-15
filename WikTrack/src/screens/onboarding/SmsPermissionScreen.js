@@ -17,20 +17,30 @@ export default function SmsPermissionScreen({ navigation }) {
   const handleAllow = async () => {
     if (Platform.OS === 'android') {
       try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.READ_SMS,
-          {
-            title: 'WikTrack needs to read your M-Pesa messages',
-            message:
-              'We only read messages from MPESA to track your business income. We never read personal messages.',
-            buttonPositive: 'Allow',
-            buttonNegative: 'Cancel',
-          }
-        );
+        const rationale = {
+          title: 'WikTrack needs M-Pesa message access',
+          message:
+            'We only read messages from MPESA to track your business income and sync new payments in the background.',
+          buttonPositive: 'Allow',
+          buttonNegative: 'Cancel',
+        };
 
-        // Navigate regardless of result — FirstSync handles the actual sync
+        const readGranted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.READ_SMS,
+          rationale
+        );
+        const receiveGranted =
+          readGranted === PermissionsAndroid.RESULTS.GRANTED
+            ? await PermissionsAndroid.request(
+                PermissionsAndroid.PERMISSIONS.RECEIVE_SMS,
+                rationale
+              )
+            : readGranted;
+
         navigation.navigate('FirstSync', {
-          permissionGranted: granted === PermissionsAndroid.RESULTS.GRANTED,
+          permissionGranted:
+            readGranted === PermissionsAndroid.RESULTS.GRANTED &&
+            receiveGranted === PermissionsAndroid.RESULTS.GRANTED,
         });
       } catch (err) {
         console.error('Permission error:', err);

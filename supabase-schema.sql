@@ -75,6 +75,23 @@ CREATE TABLE daily_summaries (
 );
 
 -- ============================================================
+-- Table 5 - failed_parses
+-- Dead-letter queue for MPESA SMS formats the parser did not recognize.
+-- ============================================================
+CREATE TABLE failed_parses (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id     UUID REFERENCES businesses(id) ON DELETE CASCADE,
+  sender          TEXT,
+  raw_sms         TEXT NOT NULL,
+  sms_hash        TEXT UNIQUE NOT NULL,
+  received_at     TIMESTAMP,
+  parser_version  TEXT NOT NULL,
+  error           TEXT,
+  resolved        BOOLEAN DEFAULT FALSE,
+  created_at      TIMESTAMP DEFAULT NOW()
+);
+
+-- ============================================================
 -- Indexes for query performance
 -- ============================================================
 CREATE INDEX idx_transactions_business_id ON transactions(business_id);
@@ -83,6 +100,8 @@ CREATE INDEX idx_transactions_type        ON transactions(type);
 CREATE INDEX idx_expenses_business_id     ON expenses(business_id);
 CREATE INDEX idx_businesses_shortcode     ON businesses(shortcode);
 CREATE INDEX idx_businesses_user_id       ON businesses(user_id);
+CREATE INDEX idx_failed_parses_business_id ON failed_parses(business_id);
+CREATE INDEX idx_failed_parses_resolved    ON failed_parses(resolved);
 
 -- ============================================================
 -- Row Level Security — users can ONLY see their own data
@@ -91,6 +110,7 @@ ALTER TABLE businesses   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expenses     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_summaries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE failed_parses ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "own business only" ON businesses
   FOR ALL USING (user_id = auth.uid());
@@ -106,6 +126,11 @@ CREATE POLICY "own expenses only" ON expenses
   );
 
 CREATE POLICY "own summaries only" ON daily_summaries
+  FOR ALL USING (
+    business_id IN (SELECT id FROM businesses WHERE user_id = auth.uid())
+  );
+
+CREATE POLICY "own failed parses only" ON failed_parses
   FOR ALL USING (
     business_id IN (SELECT id FROM businesses WHERE user_id = auth.uid())
   );

@@ -42,7 +42,8 @@
             "newArchEnabled": false
           }
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "extra": {
       "eas": {

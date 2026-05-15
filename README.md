@@ -1,12 +1,15 @@
 # WikTrack
 
-Free Android app for Kenyan business owners who want to track M-Pesa income from SMS messages. WikTrack reads Safaricom M-Pesa messages on-device, imports income transactions to Supabase, shows dashboard/transaction views, and sends a daily 8:00 PM EAT summary through Vercel Cron and Expo push notifications.
+Free Android app for Kenyan business owners who want to track M-Pesa income from SMS messages. WikTrack reads Safaricom M-Pesa messages on-device, stores transactions locally first, syncs them to Supabase when online, shows dashboard/transaction views, and sends a daily 8:00 PM EAT summary through Vercel Cron and Expo push notifications.
 
 ## Status
 
 Phase 1 is complete and testing-ready.
 
 - Native SMS reading works on the Android APK.
+- Background SMS receive sync is wired through Android Headless JS.
+- Transactions are cached locally with SQLite before Supabase upload.
+- Unrecognized MPESA SMS formats are queued to the `failed_parses` dead-letter table.
 - Existing-account login works.
 - Supabase email verification works, but the confirmation link currently opens the backend URL; after verifying, users log in again.
 - Daily summary notifications work after Firebase FCM V1 credentials are assigned in Expo/EAS.
@@ -17,7 +20,7 @@ Phase 1 is complete and testing-ready.
 ```text
 Wik track/
 |-- WikTrack/                 # Expo React Native Android app
-|   |-- modules/sms-reader/   # Custom local Expo module for Android SMS reading
+|   |-- modules/sms-reader/   # Custom local Expo module for Android SMS reading/background receiver
 |   |-- src/
 |   |   |-- screens/          # Home, Transactions, Settings, Onboarding
 |   |   |-- components/       # Cards, lists, badges, shared UI
@@ -35,7 +38,8 @@ Wik track/
 |   |-- lib/supabase.js       # Service-role Supabase client
 |   |-- vercel.json           # Serverless route + cron config
 |   `-- index.js              # Express app entry
-|-- supabase-schema.sql       # Applied database schema
+|-- supabase-schema.sql       # Full database schema
+|-- supabase-failed-parses-migration.sql # Existing-project DLQ migration
 `-- PesaBoard_Design_Spec_v2.md
 ```
 
@@ -47,6 +51,7 @@ Wik track/
 | Native SMS | Local Expo module in Kotlin |
 | Navigation | React Navigation 7 |
 | State | Zustand + AsyncStorage |
+| Local data | Expo SQLite |
 | Database/Auth | Supabase PostgreSQL, Auth, RLS |
 | Backend | Express on Vercel serverless functions |
 | Scheduler | Vercel Cron, `0 17 * * *` UTC = 8:00 PM EAT |
@@ -55,7 +60,18 @@ Wik track/
 
 ## App Data Flow
 
-The Android app talks directly to Supabase for auth, settings, SMS imports, dashboard reads, and transaction reads. The backend is only required for scheduled push summaries:
+The Android app talks directly to Supabase for auth, settings, push tokens, and remote sync. Transaction display is local-first:
+
+```text
+Foreground sync or new SMS_RECEIVED intent
+-> parse MPESA SMS on device
+-> save parsed transactions to Expo SQLite
+-> save unrecognized MPESA SMS to a local failed-parse queue
+-> silently upload pending rows to Supabase transactions / failed_parses
+-> Dashboard and Transactions read from SQLite for instant/offline UI
+```
+
+The backend is only required for scheduled push summaries:
 
 ```text
 Android app -> saves businesses.push_token in Supabase
@@ -63,6 +79,16 @@ Vercel Cron -> calls wiktrack-backend /api/cron/daily-summary
 Backend -> reads Supabase with service role key
 Backend -> sends Expo push notification through FCM V1 credentials
 ```
+
+## Supabase DLQ
+
+`failed_parses` is a dead-letter table for MPESA messages the parser cannot recognize. The current full schema includes it in `supabase-schema.sql`. Existing projects can apply:
+
+```text
+supabase-failed-parses-migration.sql
+```
+
+The user has run this migration in Supabase SQL Editor. The table may remain empty during normal testing because rows are only created for unrecognized MPESA formats.
 
 ## Setup
 
@@ -93,6 +119,24 @@ APK output:
 
 ```text
 WikTrack/android/app/build/outputs/apk/release/app-release.apk
+```
+
+Install on a connected phone:
+
+```powershell
+C:\Users\paul\AppData\Local\Android\Sdk\platform-tools\adb.exe install -r "C:\Users\paul\Documents\Wik\Wik track\WikTrack\android\app\build\outputs\apk\release\app-release.apk"
+```
+
+Manual test checklist:
+
+```text
+1. Install the release APK.
+2. Log in.
+3. Grant READ_SMS and RECEIVE_SMS.
+4. Settings -> Sync now should import existing MPESA income into SQLite and Supabase.
+5. Dashboard and Transactions should open quickly from local data.
+6. New MPESA received-money SMS should be picked up by the Android Headless JS background task.
+7. Supabase failed_parses should only get rows for MPESA messages the parser does not recognize.
 ```
 
 ### Backend

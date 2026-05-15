@@ -1,19 +1,16 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Platform, TouchableOpacity } from 'react-native';
-import { readSmsMessages } from '../../lib/smsReader';
-import { parseMpesaSMS } from '../../lib/smsParser';
-import { supabase } from '../../lib/supabase';
 import { useBusinessStore } from '../../store';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { radius } from '../../theme/shadows';
-import { markFullHistorySynced, markLastSyncNow } from '../../lib/syncState';
-import * as Crypto from 'expo-crypto';
+import { useSmsSync } from '../../hooks/useSmsSync';
 
 export default function FirstSyncScreen({ navigation, route }) {
   const permissionGranted = route?.params?.permissionGranted ?? false;
-  const { businessId, enabledTypes, completeOnboarding, setLastSync } = useBusinessStore();
+  const { businessId, completeOnboarding } = useBusinessStore();
+  const { sync } = useSmsSync(false);
   const [messageCount, setMessageCount] = useState(0);
   const [importing, setImporting] = useState(true);
   const [imported, setImported] = useState(0);
@@ -24,7 +21,6 @@ export default function FirstSyncScreen({ navigation, route }) {
     if (permissionGranted && Platform.OS === 'android') {
       runInitialSync();
     } else {
-      // No permission — skip to dashboard after brief delay
       setTimeout(() => {
         finishOnboarding();
       }, 1500);
@@ -32,82 +28,39 @@ export default function FirstSyncScreen({ navigation, route }) {
   }, []);
 
   const runInitialSync = async () => {
-    const filter = {
-      box: 'inbox',
-      address: 'MPESA',
-      minDate: 0, // Read all history
-    };
-
     try {
-      // Register for push notifications during initial sync
       if (businessId) {
         const { registerForPushNotifications } = require('../../lib/notifications');
-        registerForPushNotifications(businessId).catch(err => 
+        registerForPushNotifications(businessId).catch((err) =>
           console.error('Push registration failed:', err)
         );
       }
 
-      const messages = await readSmsMessages(filter);
-      setMessageCount(messages.length);
+      const result = await sync({
+        fullHistory: true,
+        onProgress: ({ parsedCount, messagesRead }) => {
+          setMessageCount(messagesRead);
+          setImported(parsedCount);
+        },
+      });
 
-      const parsed = messages
-        .map((sms) => parseMpesaSMS(sms.body, enabledTypes))
-        .filter(Boolean);
+      setMessageCount(result.messagesRead);
+      setImported(result.parsedCount);
 
-      if (parsed.length === 0) {
-        await markFullHistorySynced();
-        await markLastSyncNow();
+      if (!result.success) {
+        throw new Error(result.errorMessage || 'Initial SMS sync failed.');
+      }
+
+      if (result.parsedCount === 0) {
         finishOnboarding();
         return;
       }
 
-      // Animate progress
       Animated.timing(progressAnim, {
         toValue: 1,
-        duration: Math.min(parsed.length * 50, 3000), // At least 3s for the wow moment
+        duration: Math.min(result.parsedCount * 50, 3000),
         useNativeDriver: false,
       }).start();
-
-      // Process in batches of 50
-      const batchSize = 50;
-      let processedCount = 0;
-
-      for (let i = 0; i < parsed.length; i += batchSize) {
-        const batch = parsed.slice(i, i + batchSize);
-        const transactions = await Promise.all(
-          batch.map(async (tx) => ({
-            business_id: businessId,
-            type: tx.type,
-            amount: tx.amount,
-            sender_name: tx.senderName,
-            sender_phone: tx.senderPhone,
-            account_ref: tx.accountRef,
-            mpesa_code: tx.mpesaCode,
-            timestamp: tx.timestamp.toISOString(),
-            balance: tx.balance,
-            source: 'sms',
-            sms_hash: await Crypto.digestStringAsync(
-              Crypto.CryptoDigestAlgorithm.SHA256,
-              tx.rawSms
-            ),
-          }))
-        );
-
-        const { error } = await supabase
-          .from('transactions')
-          .upsert(transactions, { onConflict: 'sms_hash' });
-
-        if (error) {
-          throw error;
-        }
-
-        processedCount += batch.length;
-        setImported(processedCount);
-      }
-
-      setLastSync();
-      await markFullHistorySynced();
-      await markLastSyncNow();
     } catch (err) {
       console.error('Initial sync error:', err);
       setErrorMessage('SMS import could not start on this build. You can continue and sync again after the Android build is updated.');

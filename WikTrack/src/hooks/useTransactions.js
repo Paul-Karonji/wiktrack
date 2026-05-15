@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
 import { useBusinessStore } from '../store';
+import {
+  flushPendingSync,
+  pullRemoteTransactionsToLocal,
+  queryLocalTransactions,
+} from '../lib/smsSyncService';
+import { initLocalDatabase } from '../lib/localDatabase';
 
 export function useTransactions() {
   const { businessId } = useBusinessStore();
@@ -17,46 +22,35 @@ export function useTransactions() {
     setLoading(true);
 
     try {
-      let query = supabase
-        .from('transactions')
-        .select('*')
-        .eq('business_id', businessId)
-        .order('timestamp', { ascending: false });
-
-      // Type filter
-      if (filter !== 'all') {
-        query = query.eq('type', filter);
-      }
-
-      // Date range
-      if (dateRange?.start) {
-        query = query.gte('timestamp', dateRange.start);
-      }
-      if (dateRange?.end) {
-        query = query.lte('timestamp', dateRange.end);
-      }
-
-      // Search
-      if (searchQuery.trim()) {
-        query = query.or(
-          `sender_name.ilike.%${searchQuery}%,sender_phone.ilike.%${searchQuery}%,account_ref.ilike.%${searchQuery}%,mpesa_code.ilike.%${searchQuery}%`
-        );
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Transactions fetch error:', error);
-        return;
-      }
-
-      const txList = data || [];
+      await initLocalDatabase();
+      const txList = await queryLocalTransactions({
+        businessId,
+        filter,
+        searchQuery,
+        dateRange,
+      });
       setTransactions(txList);
       setTotalCount(txList.length);
       setTotalAmount(txList.reduce((s, t) => s + Number(t.amount), 0));
+      setLoading(false);
+
+      try {
+        await flushPendingSync(businessId);
+        await pullRemoteTransactionsToLocal(businessId);
+        const refreshed = await queryLocalTransactions({
+          businessId,
+          filter,
+          searchQuery,
+          dateRange,
+        });
+        setTransactions(refreshed);
+        setTotalCount(refreshed.length);
+        setTotalAmount(refreshed.reduce((s, t) => s + Number(t.amount), 0));
+      } catch (syncErr) {
+        console.error('Transactions background sync error:', syncErr);
+      }
     } catch (err) {
       console.error('Transactions error:', err);
-    } finally {
       setLoading(false);
     }
   }, [businessId, filter, searchQuery, dateRange]);

@@ -1,16 +1,13 @@
 import { useEffect, useCallback } from 'react';
 import { PermissionsAndroid, Platform } from 'react-native';
-import { readSmsMessages } from '../lib/smsReader';
-import { parseMpesaSMS } from '../lib/smsParser';
-import { supabase } from '../lib/supabase';
 import { useBusinessStore } from '../store';
-import * as Crypto from 'expo-crypto';
 import {
   getLastSyncTime,
   hasFullHistorySynced,
   markFullHistorySynced,
   markLastSyncNow,
 } from '../lib/syncState';
+import { syncSmsInbox } from '../lib/smsSyncService';
 
 export function useSmsSync(autoSync = true) {
   const { businessId, enabledTypes, setSyncStatus, setLastSync } = useBusinessStore();
@@ -20,7 +17,9 @@ export function useSmsSync(autoSync = true) {
       success: false,
       messagesRead: 0,
       parsedCount: 0,
+      failedParseCount: 0,
       insertedCount: 0,
+      syncedCount: 0,
       fullHistory: false,
       stage: 'unknown',
       errorMessage: '',
@@ -34,21 +33,13 @@ export function useSmsSync(autoSync = true) {
       return result({ stage: 'business', errorMessage: 'Business profile is missing.' });
     }
 
-    // Request SMS permission
     try {
       const hasReadSms = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_SMS);
-      const granted = hasReadSms
+      const hasReceiveSms = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.RECEIVE_SMS);
+      const permissionsGranted = hasReadSms && hasReceiveSms;
+      const granted = permissionsGranted
         ? PermissionsAndroid.RESULTS.GRANTED
-        : await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.READ_SMS,
-            {
-              title: 'WikTrack needs to read your M-Pesa messages',
-              message:
-                'We only read messages from MPESA to track your business income. We never read personal messages.',
-              buttonPositive: 'Allow',
-              buttonNegative: 'Cancel',
-            }
-          );
+        : await requestSmsPermissions();
 
       if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
         setSyncStatus('error');
@@ -72,89 +63,22 @@ export function useSmsSync(autoSync = true) {
     const fullHistory = options.fullHistory || !fullHistoryAlreadySynced;
     const lastSync = fullHistory ? 0 : await getLastSyncTime();
 
-    const filter = {
-      box: 'inbox',
-      address: 'MPESA', // ONLY M-Pesa messages — never reads personal SMS
-      minDate: lastSync,
-    };
-
     try {
-      const messages = await readSmsMessages(filter);
-      
-      const parsed = messages
-        .map((sms) => parseMpesaSMS(sms.body, enabledTypes))
-        .filter(Boolean);
+      const syncResult = await syncSmsInbox({
+        businessId,
+        enabledTypes,
+        fullHistory,
+        minDate: lastSync,
+        onProgress: options.onProgress,
+      });
 
-      if (parsed.length === 0) {
-        if (fullHistory && messages.length > 0) {
-          await markFullHistorySynced();
-        }
-        if (!fullHistory || messages.length > 0) {
-          await markLastSyncNow();
-        }
-        setSyncStatus('idle');
-        setLastSync();
-        return {
-          success: true,
-          messagesRead: messages.length,
-          parsedCount: 0,
-          insertedCount: 0,
-          fullHistory,
-          stage: 'parse',
-        };
+      if (fullHistory) {
+        await markFullHistorySynced();
       }
-
-      const transactions = await Promise.all(
-        parsed.map(async (tx) => ({
-          business_id: businessId,
-          type: tx.type,
-          amount: tx.amount,
-          sender_name: tx.senderName,
-          sender_phone: tx.senderPhone,
-          account_ref: tx.accountRef,
-          mpesa_code: tx.mpesaCode,
-          timestamp: tx.timestamp.toISOString(),
-          balance: tx.balance,
-          source: 'sms',
-          // Hash the raw SMS for deduplication
-          sms_hash: await Crypto.digestStringAsync(
-            Crypto.CryptoDigestAlgorithm.SHA256,
-            tx.rawSms
-          ),
-        }))
-      );
-
-      const { error } = await supabase
-        .from('transactions')
-        .upsert(transactions, { onConflict: 'sms_hash' });
-
-      if (error) {
-        console.error('Sync error:', error);
-        setSyncStatus('error');
-        return result({
-          messagesRead: messages.length,
-          parsedCount: parsed.length,
-          insertedCount: 0,
-          fullHistory,
-          stage: 'supabase',
-          errorMessage: error.message || JSON.stringify(error),
-        });
-      } else {
-        if (fullHistory) {
-          await markFullHistorySynced();
-        }
-        await markLastSyncNow();
-        setSyncStatus('idle');
-        setLastSync();
-        return {
-          success: true,
-          messagesRead: messages.length,
-          parsedCount: parsed.length,
-          insertedCount: transactions.length,
-          fullHistory,
-          stage: 'complete',
-        };
-      }
+      await markLastSyncNow();
+      setSyncStatus('idle');
+      setLastSync();
+      return syncResult;
     } catch (err) {
       console.error('Sync processing error:', err);
       setSyncStatus('error');
@@ -172,4 +96,32 @@ export function useSmsSync(autoSync = true) {
   }, [autoSync, businessId, requestAndSync]);
 
   return { sync: requestAndSync };
+}
+
+async function requestSmsPermissions() {
+  const rationale = {
+      title: 'WikTrack needs M-Pesa message access',
+      message:
+        'We only read messages from MPESA to track your business income and sync new payments in the background.',
+      buttonPositive: 'Allow',
+      buttonNegative: 'Cancel',
+  };
+
+  const readStatus = await PermissionsAndroid.request(
+    PermissionsAndroid.PERMISSIONS.READ_SMS,
+    rationale
+  );
+
+  if (readStatus !== PermissionsAndroid.RESULTS.GRANTED) {
+    return readStatus;
+  }
+
+  const receiveStatus = await PermissionsAndroid.request(
+    PermissionsAndroid.PERMISSIONS.RECEIVE_SMS,
+    rationale
+  );
+
+  return receiveStatus === PermissionsAndroid.RESULTS.GRANTED
+    ? PermissionsAndroid.RESULTS.GRANTED
+    : receiveStatus;
 }

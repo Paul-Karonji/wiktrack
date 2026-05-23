@@ -63,6 +63,11 @@ export default function TransactionRow({ transaction, onPress }) {
             {displayName}
           </Text>
           <View style={styles.badgeRow}>
+            {transaction.fuliza_amount > 0 && (
+              <View style={styles.fulizaBadge}>
+                <Text style={styles.fulizaText}>Fuliza</Text>
+              </View>
+            )}
             <TypeBadge type={type} />
           </View>
         </View>
@@ -124,6 +129,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+  },
+  fulizaBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  fulizaText: {
+    ...typography.badge,
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: colors.red,
   },
   networkBadge: {
     paddingHorizontal: 6,

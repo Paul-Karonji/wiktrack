@@ -407,8 +407,8 @@ export async function queryLocalTransactions({
         lt.sync_status,
         lt.flow,
         lt.network,
-        lt.fuliza_amount,
-        lt.outstanding_fuliza,
+        COALESCE(lt.fuliza_amount, f.fuliza_amount) AS fuliza_amount,
+        COALESCE(lt.outstanding_fuliza, f.outstanding_fuliza) AS outstanding_fuliza,
         m.custom_name AS custom_recipient_name,
         m.category AS custom_category
       FROM local_transactions lt
@@ -417,6 +417,13 @@ export async function queryLocalTransactions({
           (lt.sender_phone IS NOT NULL AND lt.sender_phone = m.recipient) OR
           (lt.account_ref IS NOT NULL AND lt.account_ref = m.recipient) OR
           (lt.sender_name IS NOT NULL AND lt.sender_name = m.recipient)
+        )
+      LEFT JOIN local_transactions f
+        ON (
+          lt.mpesa_code IS NOT NULL 
+          AND lt.mpesa_code = f.mpesa_code 
+          AND f.type = 'fuliza' 
+          AND lt.type != 'fuliza'
         )
       WHERE ${where.join(' AND ')}
       ORDER BY lt.timestamp DESC

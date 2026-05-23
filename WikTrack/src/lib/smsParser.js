@@ -68,20 +68,30 @@ const B2C_INCOME_REGEX = /Confirmed\.?\s*You have received\s+Ksh\s*([\d,]+(?:\.\
 // ============================================================
 // REGEX PATTERNS - EXPENSES / OUTGOING (flow: 'out')
 // ============================================================
-const TILL_EXPENSE_REGEX = /Confirmed\.\s+Ksh\s*([\d,]+(?:\.\d+)?)\s+paid to\s+(.+?)\s+on\s+(\d+\/\d+\/\d+)\s+at\s+([\d:]+\s+[AP]M)\.\s+New M-PESA balance is Ksh\s*([\d,]+(?:\.\d+)?)/i;
+const TILL_EXPENSE_REGEX = /Confirmed\.\s+Ksh\s*([\d,]+(?:\.\d+)?)\s+(?:paid|sent) to\s+(.+?)\s+on\s+(\d+\/\d+\/\d+)\s+at\s+([\d:]+\s+[AP]M)\.?\s+New M-PESA balance is Ksh\s*([\d,]+(?:\.\d+)?)/i;
 
-const PAYBILL_EXPENSE_REGEX = /Confirmed\.\s+Ksh\s*([\d,]+(?:\.\d+)?)\s+paid to\s+(.+?)\s+for account\s+(\S+)\s+on\s+(\d+\/\d+\/\d+)\s+at\s+([\d:]+\s+[AP]M)\.\s+New M-PESA balance is Ksh\s*([\d,]+(?:\.\d+)?)/i;
+const PAYBILL_EXPENSE_REGEX = /Confirmed\.\s+Ksh\s*([\d,]+(?:\.\d+)?)\s+(?:paid|sent) to\s+(.+?)\s+for account\s+(\S+)\s+on\s+(\d+\/\d+\/\d+)\s+at\s+([\d:]+\s+[AP]M)\.?\s+New M-PESA balance is Ksh\s*([\d,]+(?:\.\d+)?)/i;
 
-const P2P_EXPENSE_REGEX = /Confirmed\.\s+Ksh\s*([\d,]+(?:\.\d+)?)\s+sent to\s+(.+?)\s+(\d{10})\s+on\s+(\d+\/\d+\/\d+)\s+at\s+([\d:]+\s+[AP]M)\.\s+New M-PESA balance is Ksh\s*([\d,]+(?:\.\d+)?)/i;
+const P2P_EXPENSE_REGEX = /Confirmed\.\s+Ksh\s*([\d,]+(?:\.\d+)?)\s+sent to\s+(.+?)(?:\s+(\d{10}))?\s+on\s+(\d+\/\d+\/\d+)\s+at\s+([\d:]+\s+[AP]M)\.?\s+New M-PESA balance is Ksh\s*([\d,]+(?:\.\d+)?)/i;
 
-const WITHDRAWAL_EXPENSE_REGEX = /Confirmed\.\s+Ksh\s*([\d,]+(?:\.\d+)?)\s+withdrawn from\s+(.+?)\s+on\s+(\d+\/\d+\/\d+)\s+at\s+([\d:]+\s+[AP]M)\.\s+New M-PESA balance is Ksh\s*([\d,]+(?:\.\d+)?)/i;
+const WITHDRAWAL_EXPENSE_REGEX = /Confirmed\.\s+Ksh\s*([\d,]+(?:\.\d+)?)\s+withdrawn from\s+(.+?)\s+on\s+(\d+\/\d+\/\d+)\s+at\s+([\d:]+\s+[AP]M)\.?\s+New M-PESA balance is Ksh\s*([\d,]+(?:\.\d+)?)/i;
 
 // ============================================================
 // REGEX PATTERNS - FULIZA (flow: 'out')
 // ============================================================
-const FULIZA_OVERDRAFT_REGEX = /Confirmed\.\s+Fuliza M-PESA amount is Ksh\s*([\d,]+(?:\.\d+)?)\.\s+Access Fee charged\s+Ksh\s*([\d,]+(?:\.\d+)?)\.\s+Total Fuliza M-PESA outstanding amount is Ksh\s*([\d,]+(?:\.\d+)?)\s+due on\s+(\d+\/\d+\/\d+)/i;
+const FULIZA_OVERDRAFT_REGEX = /Confirmed\.\s+Fuliza M-PESA amount is Ksh\s*([\d,]+(?:\.\d+)?)\.\s+(?:Access Fee|Interest) charged\s+Ksh\s*([\d,]+(?:\.\d+)?)\.\s+Total Fuliza M-PESA outstanding amount is Ksh\s*([\d,]+(?:\.\d+)?)\s+due on\s+(\d+\/\d+\/\d+)/i;
 
-const FULIZA_REPAYMENT_REGEX = /Confirmed\.\s+Ksh\s*([\d,]+(?:\.\d+)?)\s+from your M-PESA has been used to (?:fully|partially) pay your outstanding Fuliza M-PESA\.\s+Available Fuliza M-PESA limit is\s+(?:Ksh\s*)?([\d,]+(?:\.\d+)?)\.\s+Your M-PESA balance is\s*([\d,]+(?:\.\d+)?)/i;
+const FULIZA_REPAYMENT_REGEX = /Confirmed\.\s+Ksh\s*([\d,]+(?:\.\d+)?)\s+from your M-PESA has been used to (?:fully|partially) pay your outstanding Fuliza M-PESA\.\s+Available Fuliza M-PESA limit is\s+(?:Ksh\s*)?([\d,]+(?:\.\d+)?)\.\s+(?:Your\s+)?M-PESA balance is\s*(?:Ksh\s*)?([\d,]+(?:\.\d+)?)/i;
+
+// ============================================================
+// REGEX PATTERNS - AIRTIME, TRANSFERS, AND M-SHWARI
+// ============================================================
+const AIRTIME_EXPENSE_REGEX = /Confirmed\.?\s*You bought Ksh\s*([\d,]+(?:\.\d+)?)\s+of airtime on\s+(\d+\/\d+\/\d+)\s+at\s+([\d:]+\s+[AP]M)\.?\s*(?:Your\s+)?New M-PESA balance is Ksh\s*([\d,]+(?:\.\d+)?)/i;
+
+const TRANSFER_EXPENSE_REGEX = /Confirmed\.\s+Ksh\s*([\d,]+(?:\.\d+)?)\s+transferr?ed from your M-PESA account to\s+(.+?)\s+on\s+(\d+\/\d+\/\d+)\s+at\s+([\d:]+\s+[AP]M)\.\s*(?:Your\s+)?(?:New\s+)?M-PESA balance is Ksh\s*([\d,]+(?:\.\d+)?)/i;
+
+const MSHWARI_INCOME_REGEX = /Confirmed\.?\s*Ksh\s*([\d,]+(?:\.\d+)?)\s+transferred from\s+(.+?)\s+on\s+(\d+\/\d+\/\d+)\s+at\s+([\d:]+\s+[AP]M)\.?\s*.*M-PESA balance is Ksh\s*([\d,]+(?:\.\d+)?)/i;
+
 
 
 
@@ -294,6 +304,57 @@ export function parseMpesaSMS(smsBody, enabledTypes = ['till', 'paybill', 'pochi
       balance: parseAmount(match[5]),
       rawSms: smsBody,
       flow: 'out',
+      network: 'mpesa',
+    };
+  }
+
+  // 13. AIRTIME EXPENSE (categorized as paybill / Safaricom Airtime)
+  if (enabledTypes.includes('paybill') && (match = smsBody.match(AIRTIME_EXPENSE_REGEX))) {
+    return {
+      type: SMS_TYPES.PAYBILL,
+      amount: parseAmount(match[1]),
+      senderName: 'Safaricom Airtime',
+      senderPhone: null,
+      accountRef: 'Airtime Purchase',
+      mpesaCode: parseCode(smsBody),
+      timestamp: parseDate(match[2], match[3]),
+      balance: parseAmount(match[4]),
+      rawSms: smsBody,
+      flow: 'out',
+      network: 'mpesa',
+    };
+  }
+
+  // 14. TRANSFER EXPENSE (e.g. to KCB M-PESA Fixed Savings / M-Shwari / Bank transfer out)
+  if (enabledTypes.includes('withdrawal') && (match = smsBody.match(TRANSFER_EXPENSE_REGEX))) {
+    return {
+      type: SMS_TYPES.WITHDRAWAL,
+      amount: parseAmount(match[1]),
+      senderName: match[2].trim(),
+      senderPhone: null,
+      accountRef: 'Fund Transfer',
+      mpesaCode: parseCode(smsBody),
+      timestamp: parseDate(match[3], match[4]),
+      balance: parseAmount(match[5]),
+      rawSms: smsBody,
+      flow: 'out',
+      network: 'mpesa',
+    };
+  }
+
+  // 15. M-SHWARI / BANK INCOME (e.g. transfer in from M-Shwari / Bank)
+  if (enabledTypes.includes('p2p') && (match = smsBody.match(MSHWARI_INCOME_REGEX))) {
+    return {
+      type: SMS_TYPES.P2P,
+      amount: parseAmount(match[1]),
+      senderName: match[2].trim(),
+      senderPhone: null,
+      accountRef: 'Fund Deposit',
+      mpesaCode: parseCode(smsBody),
+      timestamp: parseDate(match[3], match[4]),
+      balance: parseAmount(match[5]),
+      rawSms: smsBody,
+      flow: 'in',
       network: 'mpesa',
     };
   }

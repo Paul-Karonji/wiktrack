@@ -23,30 +23,42 @@ export function startDailySummaryCron() {
       try {
         const { data: transactions } = await supabase
           .from('transactions')
-          .select('amount, sender_name')
+          .select('amount, sender_name, flow')
           .eq('business_id', biz.id)
           .gte('timestamp', today.start)
           .lt('timestamp', today.end);
-
+ 
         if (!transactions || transactions.length === 0) continue;
-
-        // Find top sender
+ 
+        let totalIncome = 0;
+        let totalExpense = 0;
         const counts = {};
-        transactions.forEach((t) => {
-          if (t.sender_name) counts[t.sender_name] = (counts[t.sender_name] || 0) + 1;
-        });
-        const topSender = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
 
+        transactions.forEach((t) => {
+          const amt = Number(t.amount);
+          if (t.flow === 'out') {
+            totalExpense += amt;
+          } else {
+            totalIncome += amt;
+          }
+          if (t.sender_name) {
+            counts[t.sender_name] = (counts[t.sender_name] || 0) + 1;
+          }
+        });
+ 
+        const topSender = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
+ 
         const summary = {
           date: today.date,
-          totalIncome: transactions.reduce((s, t) => s + Number(t.amount), 0),
+          totalIncome,
+          totalExpense,
           txCount: transactions.length,
           topSender,
         };
-
+ 
         await sendDailySummary(biz.push_token, summary);
         sentCount++;
-
+ 
         // Also update daily_summaries cache
         await supabase
           .from('daily_summaries')
@@ -54,6 +66,7 @@ export function startDailySummaryCron() {
             business_id: biz.id,
             date: today.date,
             total_income: summary.totalIncome,
+            total_expenses: summary.totalExpense,
             tx_count: summary.txCount,
             top_sender: summary.topSender,
           }, { onConflict: 'business_id,date' });

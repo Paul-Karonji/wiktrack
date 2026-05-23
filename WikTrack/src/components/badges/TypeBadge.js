@@ -8,6 +8,9 @@ const TYPE_CONFIG = {
   paybill: { label: 'Paybill', color: colors.paybill, bg: colors.paybillBg, border: colors.paybillBorder },
   pochi: { label: 'Pochi', color: colors.pochi, bg: colors.pochiBg, border: colors.pochiBorder },
   p2p: { label: 'P2P', color: colors.p2p, bg: colors.p2pBg, border: colors.p2pBorder },
+  withdrawal: { label: 'Withdrawal', color: colors.orange, bg: '#FFEDD5', border: '#FED7AA' },
+  fuliza: { label: 'Fuliza', color: colors.red, bg: colors.redLight, border: '#FCA5A5' },
+  repayment: { label: 'Fuliza Repay', color: colors.pochi, bg: colors.pochiBg, border: colors.pochiBorder },
 };
 
 export default function TypeBadge({ type }) {

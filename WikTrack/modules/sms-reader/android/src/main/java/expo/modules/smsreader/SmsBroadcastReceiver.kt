@@ -37,7 +37,7 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
     }
 
     val normalizedBody = body.uppercase()
-    return normalizedBody.contains("CONFIRMED") &&
+    return (normalizedBody.contains("CONFIRMED") || normalizedBody.contains("FULIZA")) &&
       (normalizedBody.contains("MPESA") || normalizedBody.contains("M-PESA"))
   }
 }

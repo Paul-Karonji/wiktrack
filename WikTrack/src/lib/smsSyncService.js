@@ -1,8 +1,8 @@
-import * as Crypto from 'expo-crypto';
-import { parseMpesaSMS } from './smsParser';
+import { parseSMS } from './smsParser';
 import { readSmsMessages } from './smsReader';
 import { supabase } from './supabase';
 import { useBusinessStore } from '../store';
+import { sha256String } from './hash';
 import {
   getLocalDashboardData,
   initLocalDatabase,
@@ -15,11 +15,12 @@ import {
   queryLocalTransactions,
   upsertLocalFailedParses,
   upsertLocalTransactions,
+  saveLocalRecipientMapping,
+  listPendingRecipientMappings,
+  markRecipientMappingsSynced,
 } from './localDatabase';
 
-export const PARSER_VERSION = 'mpesa-regex-v2';
-
-const MPESA_SENDER_REGEX = /^(MPESA|M-PESA)$/i;
+export const PARSER_VERSION = 'wiktrack-sync-v2';
 
 export async function getBusinessSyncContext() {
   if (useBusinessStore.persist?.rehydrate) {
@@ -30,7 +31,7 @@ export async function getBusinessSyncContext() {
 
   return {
     businessId: state.businessId,
-    enabledTypes: state.enabledTypes || ['pochi', 'p2p', 'till', 'paybill'],
+    enabledTypes: state.enabledTypes || ['pochi', 'p2p', 'till', 'paybill', 'withdrawal', 'fuliza', 'repayment'],
   };
 }
 
@@ -43,11 +44,15 @@ export async function syncSmsInbox({
 }) {
   await initLocalDatabase();
 
+  // 1. Fetch M-Pesa messages
   const messages = await readSmsMessages({
     box: 'inbox',
     address: 'MPESA',
     minDate,
   });
+
+  // Sort in descending order of time
+  messages.sort((a, b) => b.date - a.date);
 
   const processed = await processSmsMessages(messages, {
     businessId,
@@ -65,6 +70,7 @@ export async function syncSmsInbox({
     insertedCount: processed.parsedCount,
     syncedCount: upload.syncedTransactions,
     syncedFailedParseCount: upload.syncedFailedParses,
+    syncedMappingsCount: upload.syncedMappings,
     fullHistory,
     stage: 'complete',
   };
@@ -92,6 +98,7 @@ export async function syncIncomingSms(sms) {
     failedParseCount: processed.failedParseCount,
     syncedCount: upload.syncedTransactions,
     syncedFailedParseCount: upload.syncedFailedParses,
+    syncedMappingsCount: upload.syncedMappings,
     stage: 'complete',
   };
 }
@@ -104,7 +111,8 @@ export async function processSmsMessages(messages, { businessId, enabledTypes, o
     const rawSms = sms.body || sms.rawSms || '';
     if (!rawSms.trim()) continue;
 
-    const parsed = parseMpesaSMS(rawSms, enabledTypes);
+    const senderAddr = sms.address || sms.sender || 'MPESA';
+    const parsed = parseSMS(rawSms, senderAddr, enabledTypes);
     const smsHash = await hashSms(rawSms);
 
     if (parsed) {
@@ -119,8 +127,8 @@ export async function processSmsMessages(messages, { businessId, enabledTypes, o
       continue;
     }
 
-    const disabledKnownType = parseMpesaSMS(rawSms);
-    if (!disabledKnownType && isMpesaSender(sms.address || sms.sender)) {
+    const disabledKnownType = parseSMS(rawSms, senderAddr);
+    if (!disabledKnownType && isMonitoredSender(senderAddr)) {
       failedParses.push(toLocalFailedParse(sms, businessId, smsHash));
     }
   }
@@ -137,12 +145,11 @@ export async function processSmsMessages(messages, { businessId, enabledTypes, o
 export async function flushPendingSync(businessId) {
   await initLocalDatabase();
 
-  const [syncedTransactions, syncedFailedParses] = await Promise.all([
-    flushPendingTransactions(businessId),
-    flushPendingFailedParses(businessId),
-  ]);
+  const syncedTransactions = await flushPendingTransactions(businessId);
+  const syncedFailedParses = await flushPendingFailedParses(businessId);
+  const syncedMappings = await flushPendingRecipientMappings(businessId);
 
-  return { syncedTransactions, syncedFailedParses };
+  return { syncedTransactions, syncedFailedParses, syncedMappings };
 }
 
 export async function pullRemoteTransactionsToLocal(businessId) {
@@ -176,10 +183,35 @@ export async function pullRemoteTransactionsToLocal(businessId) {
       created_at: row.created_at || new Date().toISOString(),
       synced_at: new Date().toISOString(),
       sync_status: 'synced',
+      flow: row.flow || 'in',
+      network: row.network || 'mpesa',
+      fuliza_amount: row.fuliza_amount == null ? null : Number(row.fuliza_amount),
+      outstanding_fuliza: row.outstanding_fuliza == null ? null : Number(row.outstanding_fuliza),
     }));
 
   await upsertLocalTransactions(rows, 'synced');
   return rows.length;
+}
+
+export async function pullRemoteMappingsToLocal(businessId) {
+  await initLocalDatabase();
+
+  const { data, error } = await supabase
+    .from('recipient_mappings')
+    .select('*')
+    .eq('business_id', businessId);
+
+  if (error) throw error;
+
+  for (const row of (data || [])) {
+    await saveLocalRecipientMapping({
+      businessId: row.business_id,
+      recipient: row.recipient,
+      customName: row.custom_name,
+      category: row.category,
+    }, 'synced');
+  }
+  return (data || []).length;
 }
 
 export { getLocalDashboardData, queryLocalTransactions };
@@ -224,6 +256,30 @@ async function flushPendingFailedParses(businessId) {
   return pending.length;
 }
 
+async function flushPendingRecipientMappings(businessId) {
+  const pending = await listPendingRecipientMappings(businessId);
+  if (!pending.length) return 0;
+
+  const remoteRows = pending.map(row => ({
+    business_id: row.business_id,
+    recipient: row.recipient,
+    custom_name: row.custom_name,
+    category: row.category,
+  }));
+
+  const { data, error } = await supabase
+    .from('recipient_mappings')
+    .upsert(remoteRows, { onConflict: 'business_id,recipient' })
+    .select('recipient');
+
+  if (error) {
+    return 0;
+  }
+
+  await markRecipientMappingsSynced(data || pending);
+  return pending.length;
+}
+
 function toLocalTransaction(tx, businessId, smsHash) {
   const now = new Date().toISOString();
 
@@ -240,6 +296,10 @@ function toLocalTransaction(tx, businessId, smsHash) {
     source: 'sms',
     sms_hash: smsHash,
     created_at: now,
+    flow: tx.flow || 'in',
+    network: tx.network || 'mpesa',
+    fuliza_amount: tx.fuliza_amount ?? null,
+    outstanding_fuliza: tx.outstanding_fuliza ?? null,
   };
 }
 
@@ -254,7 +314,7 @@ function toLocalFailedParse(sms, businessId, smsHash) {
     sms_hash: smsHash,
     received_at: receivedAt,
     parser_version: PARSER_VERSION,
-    error: 'No enabled parser matched an SMS from MPESA.',
+    error: 'No enabled parser matched an SMS from monitored senders.',
     created_at: now,
   };
 }
@@ -274,6 +334,10 @@ function toRemoteTransaction(row) {
     shortcode: row.shortcode,
     note: row.note,
     sms_hash: row.sms_hash,
+    flow: row.flow || 'in',
+    network: row.network || 'mpesa',
+    fuliza_amount: row.fuliza_amount ?? null,
+    outstanding_fuliza: row.outstanding_fuliza ?? null,
   };
 }
 
@@ -289,10 +353,11 @@ function toRemoteFailedParse(row) {
   };
 }
 
-function isMpesaSender(sender = '') {
-  return MPESA_SENDER_REGEX.test(String(sender).trim());
+function isMonitoredSender(sender = '') {
+  const norm = String(sender).trim().toUpperCase();
+  return norm.includes('MPESA') || norm.includes('M-PESA');
 }
 
 async function hashSms(rawSms) {
-  return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawSms);
+  return sha256String(rawSms);
 }

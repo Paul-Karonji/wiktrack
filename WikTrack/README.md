@@ -1,18 +1,18 @@
 # WikTrack Mobile App
 
-Expo React Native Android app for free M-Pesa income tracking.
+Expo React Native Android app for advanced M-Pesa Income and Expense tracking.
 
 ## Current State
 
-- Phase 1 app build is complete.
-- Existing-account login works.
-- Supabase email verification works, but verification links currently open the backend URL; users log in again after verifying.
-- Native SMS reading and import work on Android.
-- Background SMS receive sync is wired through Android Headless JS in the local SMS module.
-- Transactions are written to Expo SQLite first, then uploaded to Supabase when online.
-- MPESA messages that no parser recognizes are uploaded to the `failed_parses` dead-letter table.
-- Dashboard, Transactions, Settings, and daily summary notifications work.
-- The app stores push tokens in Supabase so the Vercel backend can send 8:00 PM EAT summaries.
+- **Dual-Flow Ledger**: Fully supports both **Income** (received money) and **Expenses** (sent money) in a unified, modern interface.
+- **Strictly M-Pesa Network**: Engineered specifically for M-Pesa. Strips direct Airtel SIM monitoring while seamlessly handling cross-network Airtel-to-Mpesa deposits arriving via `MPESA`.
+- **Fuliza Overdraft Support**: Detects and parses Fuliza overdraft SMS events to track transaction shortfalls, outstanding debt, and automatic repayments, logging overdraft access fees as individual expenses.
+- **Custom Recipient Mappings**: Integrated modal allows assigning friendly custom names and categories (e.g., Food, Travel) to recipients, which cache instantly in SQLite and sync to Supabase.
+- **SQLite Sync Database Lock Fix**: Pending queues (transactions, failed parses, recipient mappings) are flushed sequentially during remote Supabase sync, eliminating concurrent exclusive transaction blocks.
+- Dashboard with side-by-side Income/Expense cards and weekly trend flow segmentation.
+- Native SMS reading, history importing, and background Headless JS receiver for Android.
+- User accounts and email login synced with Supabase.
+- Dead-letter upload system (uploads unrecognized M-Pesa SMS lines to `failed_parses`).
 
 ## Important Files
 
@@ -80,15 +80,18 @@ C:\Users\paul\AppData\Local\Android\Sdk\platform-tools\adb.exe install -r "C:\Us
 
 ```text
 Manual sync or incoming SMS
--> smsSyncService parses the message
--> parsed transactions are saved to Expo SQLite immediately
--> unrecognized MPESA messages are saved to the local failed-parse queue
--> pending transactions upload to Supabase transactions
--> pending parser failures upload to Supabase failed_parses
--> dashboard and transaction screens read SQLite first
+-> smsSyncService parses the M-Pesa message (income / expense / Fuliza)
+-> parsed transactions are saved to local Expo SQLite
+-> unrecognized MPESA messages are placed in local failed-parse queue
+-> pending transactions are sequentially uploaded to Supabase
+-> pending parser failures are sequentially uploaded to Supabase failed_parses
+-> pending custom recipient mappings are sequentially uploaded to Supabase
+-> dashboard, transactions list, and details read SQLite first (local-first)
 ```
 
 The app asks for both `READ_SMS` and `RECEIVE_SMS`. `READ_SMS` supports full-history/manual sync; `RECEIVE_SMS` supports the Android background receiver.
+
+SMS hashes are generated through `src/lib/hash.js`. It tries Expo Crypto first, then falls back to a pure-JS SHA-256 implementation so background Headless JS sync can keep deduping safely even if the native crypto module is unavailable.
 
 ## Supabase Schema
 
@@ -99,14 +102,14 @@ The user has already run this migration. An empty `failed_parses` table is norma
 ## Manual Test Checklist
 
 ```text
-1. Install the latest release APK.
-2. Log in.
-3. Grant SMS permissions.
-4. Settings -> Sync now imports existing MPESA income.
-5. Dashboard and Transactions should populate from local SQLite.
-6. Send/receive a new MPESA income SMS and confirm it appears after background sync.
-7. Check Supabase transactions for uploaded rows.
-8. Check Supabase failed_parses only if a parser format looks broken.
+1. Install the latest release APK (android/app/build/outputs/apk/release/app-release.apk).
+2. Log in with your Supabase credentials.
+3. Grant SMS read and receive permissions when prompted.
+4. Go to Settings -> Sync to import existing M-Pesa history.
+5. Verify Income and Expenses split on the Home Dashboard and Transactions screen.
+6. Tap any transaction -> Assign custom name / category, save, and verify mapping sync.
+7. Perform an M-Pesa transaction using Fuliza and verify shortfall/outstanding debt tracking.
+8. Check Supabase 'transactions', 'failed_parses', and 'recipient_mappings' tables for synced rows.
 ```
 
 ## Push Notifications

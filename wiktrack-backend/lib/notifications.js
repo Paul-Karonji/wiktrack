@@ -55,7 +55,7 @@ export async function sendDailySummary(pushToken, summary) {
   return sendPushNotification(
     pushToken,
     'WikTrack Daily Report',
-    `Today: KES ${summary.totalIncome.toLocaleString()} - ${summary.txCount} payments`,
+    `Today - Income: KES ${summary.totalIncome.toLocaleString()}, Expenses: KES ${summary.totalExpense.toLocaleString()} (${summary.txCount} transactions)`,
     { type: 'daily_summary', date: summary.date }
   );
 }

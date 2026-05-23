@@ -71,6 +71,8 @@ Foreground sync or new SMS_RECEIVED intent
 -> Dashboard and Transactions read from SQLite for instant/offline UI
 ```
 
+SMS deduplication uses SHA-256 hashes. The app uses Expo Crypto when available and falls back to a pure-JS SHA-256 implementation so Headless JS background sync can still hash messages if the native crypto module is unavailable during a closed-app wake.
+
 The backend is only required for scheduled push summaries:
 
 ```text

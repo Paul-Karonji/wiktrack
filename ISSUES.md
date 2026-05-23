@@ -20,6 +20,7 @@ This file records the important issues found during the Phase 1 build and how th
 
 - **Issue:** SMS sync only ran when the user opened the app, regex parser failures were invisible, and direct Supabase writes made weak-network sync brittle.
 - **Fixes:** Added Android `SMS_RECEIVED` handling through Headless JS in the tracked `sms-reader` module, introduced Expo SQLite local transaction and failed-parse queues, moved foreground/onboarding/background sync through `smsSyncService`, and switched Dashboard/Transactions to local-first reads.
+- **Hardening:** SMS hashing now uses Expo Crypto as the fast path and a pure-JS SHA-256 fallback for Headless JS contexts where the native crypto module is unavailable.
 - **Database:** Added `failed_parses` to `supabase-schema.sql` and created `supabase-failed-parses-migration.sql` for existing projects. The user ran this migration in Supabase SQL Editor.
 - **Result:** Parsed transactions appear immediately from local SQLite and upload silently when possible. Unrecognized MPESA messages are retained locally and uploaded to Supabase `failed_parses` for parser maintenance.
 - **Verification:** `npx expo-doctor`, Android JS export, `:sms-reader:compileDebugKotlin`, `:app:compileDebugKotlin`, and `:app:assembleRelease` passed.

@@ -13,9 +13,17 @@ export function useTransactions() {
   const [transactions, setTransactions] = useState([]);
   const [totalAmount, setTotalAmount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
-  const [filter, setFilter] = useState('all'); // 'all','pochi','p2p','till','paybill'
+  
+  // Custom Flow and Category / Type Filtering
+  const [flow, setFlow] = useState('all'); // 'all', 'in', 'out'
+  const [filter, setFilter] = useState('all'); // 'all','pochi','p2p','till','paybill','withdrawal','fuliza','repayment'
   const [searchQuery, setSearchQuery] = useState('');
   const [dateRange, setDateRange] = useState(null); // { start, end }
+
+  // Flow aggregates
+  const [totalIncome, setTotalIncome] = useState(0);
+  const [totalExpense, setTotalExpense] = useState(0);
+  const [netBalance, setNetBalance] = useState(0);
 
   const fetchTransactions = useCallback(async () => {
     if (!businessId) return;
@@ -26,12 +34,20 @@ export function useTransactions() {
       const txList = await queryLocalTransactions({
         businessId,
         filter,
+        flow,
         searchQuery,
         dateRange,
       });
       setTransactions(txList);
       setTotalCount(txList.length);
+      
+      const inc = txList.filter(t => t.flow === 'in').reduce((s, t) => s + Number(t.amount), 0);
+      const exp = txList.filter(t => t.flow === 'out').reduce((s, t) => s + Number(t.amount), 0);
+      setTotalIncome(inc);
+      setTotalExpense(exp);
+      setNetBalance(inc - exp);
       setTotalAmount(txList.reduce((s, t) => s + Number(t.amount), 0));
+      
       setLoading(false);
 
       try {
@@ -40,11 +56,18 @@ export function useTransactions() {
         const refreshed = await queryLocalTransactions({
           businessId,
           filter,
+          flow,
           searchQuery,
           dateRange,
         });
         setTransactions(refreshed);
         setTotalCount(refreshed.length);
+        
+        const rInc = refreshed.filter(t => t.flow === 'in').reduce((s, t) => s + Number(t.amount), 0);
+        const rExp = refreshed.filter(t => t.flow === 'out').reduce((s, t) => s + Number(t.amount), 0);
+        setTotalIncome(rInc);
+        setTotalExpense(rExp);
+        setNetBalance(rInc - rExp);
         setTotalAmount(refreshed.reduce((s, t) => s + Number(t.amount), 0));
       } catch (syncErr) {
         console.error('Transactions background sync error:', syncErr);
@@ -53,7 +76,7 @@ export function useTransactions() {
       console.error('Transactions error:', err);
       setLoading(false);
     }
-  }, [businessId, filter, searchQuery, dateRange]);
+  }, [businessId, filter, flow, searchQuery, dateRange]);
 
   useEffect(() => {
     fetchTransactions();
@@ -68,6 +91,14 @@ export function useTransactions() {
     groupedTransactions,
     totalAmount,
     totalCount,
+    
+    // Flow filters & aggregates
+    flow,
+    setFlow,
+    totalIncome,
+    totalExpense,
+    netBalance,
+    
     filter,
     setFilter,
     searchQuery,
@@ -120,3 +151,4 @@ function groupByDate(transactions) {
 
   return Object.entries(groups).map(([title, data]) => ({ title, data }));
 }
+

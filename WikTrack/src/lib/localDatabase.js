@@ -65,7 +65,43 @@ export async function initLocalDatabase() {
 
     CREATE INDEX IF NOT EXISTS idx_local_failed_parses_sync
       ON local_failed_parses (business_id, sync_status);
+
+    CREATE TABLE IF NOT EXISTS local_recipient_mappings (
+      local_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      business_id TEXT NOT NULL,
+      recipient TEXT NOT NULL UNIQUE,
+      custom_name TEXT,
+      category TEXT,
+      created_at TEXT NOT NULL,
+      synced_at TEXT,
+      sync_status TEXT NOT NULL DEFAULT 'pending'
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_local_recipient_mappings_sync
+      ON local_recipient_mappings (business_id, sync_status);
   `);
+
+  // Run SQLite migrations to add columns if they do not exist
+  try {
+    await db.execAsync("ALTER TABLE local_transactions ADD COLUMN flow TEXT NOT NULL DEFAULT 'in';");
+  } catch (e) {
+    // Column already exists
+  }
+  try {
+    await db.execAsync("ALTER TABLE local_transactions ADD COLUMN network TEXT NOT NULL DEFAULT 'mpesa';");
+  } catch (e) {
+    // Column already exists
+  }
+  try {
+    await db.execAsync("ALTER TABLE local_transactions ADD COLUMN fuliza_amount REAL;");
+  } catch (e) {
+    // Column already exists
+  }
+  try {
+    await db.execAsync("ALTER TABLE local_transactions ADD COLUMN outstanding_fuliza REAL;");
+  } catch (e) {
+    // Column already exists
+  }
 }
 
 export async function upsertLocalTransactions(transactions, syncStatus = 'pending') {
@@ -81,9 +117,10 @@ export async function upsertLocalTransactions(transactions, syncStatus = 'pendin
           INSERT INTO local_transactions (
             id, business_id, type, amount, sender_name, sender_phone, account_ref,
             mpesa_code, sms_hash, timestamp, source, shortcode, balance, note,
-            created_at, synced_at, sync_status, sync_error, last_sync_attempt_at
+            created_at, synced_at, sync_status, sync_error, last_sync_attempt_at,
+            flow, network, fuliza_amount, outstanding_fuliza
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(sms_hash) DO UPDATE SET
             id = COALESCE(excluded.id, local_transactions.id),
             business_id = excluded.business_id,
@@ -105,7 +142,11 @@ export async function upsertLocalTransactions(transactions, syncStatus = 'pendin
               ELSE excluded.sync_status
             END,
             sync_error = excluded.sync_error,
-            last_sync_attempt_at = excluded.last_sync_attempt_at
+            last_sync_attempt_at = excluded.last_sync_attempt_at,
+            flow = excluded.flow,
+            network = excluded.network,
+            fuliza_amount = excluded.fuliza_amount,
+            outstanding_fuliza = excluded.outstanding_fuliza
         `,
         [
           transaction.id || null,
@@ -127,6 +168,10 @@ export async function upsertLocalTransactions(transactions, syncStatus = 'pendin
           transaction.sync_status || syncStatus,
           transaction.sync_error || null,
           transaction.last_sync_attempt_at || null,
+          transaction.flow || 'in',
+          transaction.network || 'mpesa',
+          transaction.fuliza_amount ?? null,
+          transaction.outstanding_fuliza ?? null,
         ]
       );
     }
@@ -302,35 +347,41 @@ export async function markFailedParsesSyncError(rows, errorMessage) {
 export async function queryLocalTransactions({
   businessId,
   filter = 'all',
+  flow = 'all',
   searchQuery = '',
   dateRange = null,
   limit = null,
 }) {
   const db = await getDatabase();
-  const where = ['business_id = ?'];
+  const where = ['lt.business_id = ?'];
   const params = [businessId];
 
   if (filter !== 'all') {
-    where.push('type = ?');
+    where.push('lt.type = ?');
     params.push(filter);
   }
 
+  if (flow !== 'all') {
+    where.push('lt.flow = ?');
+    params.push(flow);
+  }
+
   if (dateRange?.start) {
-    where.push('timestamp >= ?');
+    where.push('lt.timestamp >= ?');
     params.push(dateRange.start);
   }
 
   if (dateRange?.end) {
-    where.push('timestamp <= ?');
+    where.push('lt.timestamp <= ?');
     params.push(dateRange.end);
   }
 
   if (searchQuery.trim()) {
     const term = `%${searchQuery.trim()}%`;
     where.push(
-      '(sender_name LIKE ? OR sender_phone LIKE ? OR account_ref LIKE ? OR mpesa_code LIKE ?)'
+      '(lt.sender_name LIKE ? OR lt.sender_phone LIKE ? OR lt.account_ref LIKE ? OR lt.mpesa_code LIKE ? OR m.custom_name LIKE ?)'
     );
-    params.push(term, term, term, term);
+    params.push(term, term, term, term, term);
   }
 
   const limitClause = limit ? ` LIMIT ${Number(limit)}` : '';
@@ -338,25 +389,37 @@ export async function queryLocalTransactions({
   return db.getAllAsync(
     `
       SELECT
-        COALESCE(id, sms_hash) AS id,
-        business_id,
-        type,
-        amount,
-        sender_name,
-        sender_phone,
-        account_ref,
-        mpesa_code,
-        sms_hash,
-        timestamp,
-        source,
-        shortcode,
-        balance,
-        note,
-        created_at,
-        sync_status
-      FROM local_transactions
+        COALESCE(lt.id, lt.sms_hash) AS id,
+        lt.business_id,
+        lt.type,
+        lt.amount,
+        COALESCE(m.custom_name, lt.sender_name) AS sender_name,
+        lt.sender_phone,
+        lt.account_ref,
+        lt.mpesa_code,
+        lt.sms_hash,
+        lt.timestamp,
+        lt.source,
+        lt.shortcode,
+        lt.balance,
+        lt.note,
+        lt.created_at,
+        lt.sync_status,
+        lt.flow,
+        lt.network,
+        lt.fuliza_amount,
+        lt.outstanding_fuliza,
+        m.custom_name AS custom_recipient_name,
+        m.category AS custom_category
+      FROM local_transactions lt
+      LEFT JOIN local_recipient_mappings m 
+        ON (
+          (lt.sender_phone IS NOT NULL AND lt.sender_phone = m.recipient) OR
+          (lt.account_ref IS NOT NULL AND lt.account_ref = m.recipient) OR
+          (lt.sender_name IS NOT NULL AND lt.sender_name = m.recipient)
+        )
       WHERE ${where.join(' AND ')}
-      ORDER BY timestamp DESC
+      ORDER BY lt.timestamp DESC
       ${limitClause}
     `,
     params
@@ -388,22 +451,41 @@ export async function getLocalDashboardData(businessId) {
   sevenDaysAgo.setHours(0, 0, 0, 0);
   const sevenDaysAgoISO = sevenDaysAgo.toISOString();
 
-  const [today, week, lastWeek, month, lastMonth, recent, chartRows] = await Promise.all([
-    sumAndCount(db, businessId, 'timestamp >= ?', [todayStart]),
-    sumAndCount(db, businessId, 'timestamp >= ?', [weekStartISO]),
-    sumAndCount(db, businessId, 'timestamp >= ? AND timestamp < ?', [
+  const [
+    todayIncome, todayExpense,
+    weekIncome, weekExpense,
+    lastWeekIncome, lastWeekExpense,
+    monthIncome, monthExpense,
+    lastMonthIncome, lastMonthExpense,
+    recent,
+    chartRows
+  ] = await Promise.all([
+    sumAndCountFlow(db, businessId, 'in', 'timestamp >= ?', [todayStart]),
+    sumAndCountFlow(db, businessId, 'out', 'timestamp >= ?', [todayStart]),
+    sumAndCountFlow(db, businessId, 'in', 'timestamp >= ?', [weekStartISO]),
+    sumAndCountFlow(db, businessId, 'out', 'timestamp >= ?', [weekStartISO]),
+    sumAndCountFlow(db, businessId, 'in', 'timestamp >= ? AND timestamp < ?', [
       lastWeekStartISO,
       weekStartISO,
     ]),
-    sumAndCount(db, businessId, 'timestamp >= ?', [monthStart]),
-    sumAndCount(db, businessId, 'timestamp >= ? AND timestamp <= ?', [
+    sumAndCountFlow(db, businessId, 'out', 'timestamp >= ? AND timestamp < ?', [
+      lastWeekStartISO,
+      weekStartISO,
+    ]),
+    sumAndCountFlow(db, businessId, 'in', 'timestamp >= ?', [monthStart]),
+    sumAndCountFlow(db, businessId, 'out', 'timestamp >= ?', [monthStart]),
+    sumAndCountFlow(db, businessId, 'in', 'timestamp >= ? AND timestamp <= ?', [
+      lastMonthStart,
+      lastMonthEnd,
+    ]),
+    sumAndCountFlow(db, businessId, 'out', 'timestamp >= ? AND timestamp <= ?', [
       lastMonthStart,
       lastMonthEnd,
     ]),
     queryLocalTransactions({ businessId, limit: 5 }),
     db.getAllAsync(
       `
-        SELECT amount, timestamp FROM local_transactions
+        SELECT amount, timestamp, flow FROM local_transactions
         WHERE business_id = ? AND timestamp >= ?
         ORDER BY timestamp ASC
       `,
@@ -412,7 +494,8 @@ export async function getLocalDashboardData(businessId) {
   ]);
 
   const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const dailyTotals = new Array(7).fill(0);
+  const dailyIncomeTotals = new Array(7).fill(0);
+  const dailyExpenseTotals = new Array(7).fill(0);
 
   for (let i = 0; i < 7; i += 1) {
     const dayDate = new Date(sevenDaysAgo);
@@ -421,33 +504,105 @@ export async function getLocalDashboardData(businessId) {
 
     chartRows.forEach((tx) => {
       if (tx.timestamp.slice(0, 10) === dayStr) {
-        dailyTotals[i] += Number(tx.amount);
+        if (tx.flow === 'out') {
+          dailyExpenseTotals[i] += Number(tx.amount);
+        } else {
+          dailyIncomeTotals[i] += Number(tx.amount);
+        }
       }
     });
   }
 
   return {
-    todayTotal: Number(today.total || 0),
-    todayCount: Number(today.count || 0),
-    weekTotal: Number(week.total || 0),
-    lastWeekTotal: Number(lastWeek.total || 0),
-    monthTotal: Number(month.total || 0),
-    lastMonthTotal: Number(lastMonth.total || 0),
+    todayIncome: Number(todayIncome.total || 0),
+    todayIncomeCount: Number(todayIncome.count || 0),
+    todayExpense: Number(todayExpense.total || 0),
+    todayExpenseCount: Number(todayExpense.count || 0),
+
+    weekIncome: Number(weekIncome.total || 0),
+    weekExpense: Number(weekExpense.total || 0),
+
+    lastWeekIncome: Number(lastWeekIncome.total || 0),
+    lastWeekExpense: Number(lastWeekExpense.total || 0),
+
+    monthIncome: Number(monthIncome.total || 0),
+    monthExpense: Number(monthExpense.total || 0),
+
+    lastMonthIncome: Number(lastMonthIncome.total || 0),
+    lastMonthExpense: Number(lastMonthExpense.total || 0),
+
     recentTransactions: recent,
-    weeklyData: dailyTotals.map((total, i) => ({
+    weeklyIncomeData: dailyIncomeTotals.map((total, i) => ({
+      label: dayLabels[(sevenDaysAgo.getDay() + i - 1 + 7) % 7] || dayLabels[i],
+      value: total,
+    })),
+    weeklyExpenseData: dailyExpenseTotals.map((total, i) => ({
       label: dayLabels[(sevenDaysAgo.getDay() + i - 1 + 7) % 7] || dayLabels[i],
       value: total,
     })),
   };
 }
 
-async function sumAndCount(db, businessId, condition, values) {
+async function sumAndCountFlow(db, businessId, flow, condition, values) {
   return db.getFirstAsync(
     `
       SELECT COALESCE(SUM(amount), 0) AS total, COUNT(*) AS count
       FROM local_transactions
-      WHERE business_id = ? AND ${condition}
+      WHERE business_id = ? AND flow = ? AND ${condition}
     `,
-    [businessId, ...values]
+    [businessId, flow, ...values]
   );
+}
+
+// Recipient Mappings Database CRUD Helpers
+export async function saveLocalRecipientMapping({ businessId, recipient, customName, category }, syncStatus = 'pending') {
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+  await db.runAsync(
+    `
+      INSERT INTO local_recipient_mappings (
+        business_id, recipient, custom_name, category, created_at, sync_status
+      )
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(recipient) DO UPDATE SET
+        custom_name = excluded.custom_name,
+        category = excluded.category,
+        sync_status = CASE
+          WHEN local_recipient_mappings.sync_status = 'synced' AND excluded.sync_status = 'pending'
+            THEN 'pending'
+          ELSE excluded.sync_status
+        END
+    `,
+    [businessId, recipient, customName || null, category || null, now, syncStatus]
+  );
+}
+
+export async function getLocalRecipientMappings(businessId) {
+  const db = await getDatabase();
+  return db.getAllAsync(
+    `SELECT * FROM local_recipient_mappings WHERE business_id = ?`,
+    [businessId]
+  );
+}
+
+export async function listPendingRecipientMappings(businessId) {
+  const db = await getDatabase();
+  return db.getAllAsync(
+    `SELECT * FROM local_recipient_mappings WHERE business_id = ? AND sync_status != 'synced'`,
+    [businessId]
+  );
+}
+
+export async function markRecipientMappingsSynced(rows) {
+  if (!rows.length) return;
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    for (const row of rows) {
+      await tx.runAsync(
+        `UPDATE local_recipient_mappings SET sync_status = 'synced', synced_at = ? WHERE recipient = ?`,
+        [now, row.recipient]
+      );
+    }
+  });
 }

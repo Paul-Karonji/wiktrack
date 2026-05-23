@@ -10,24 +10,45 @@ import { initLocalDatabase } from '../lib/localDatabase';
 export function useDashboard() {
   const { businessId } = useBusinessStore();
   const [loading, setLoading] = useState(true);
-  const [todayTotal, setTodayTotal] = useState(0);
-  const [todayCount, setTodayCount] = useState(0);
-  const [weekTotal, setWeekTotal] = useState(0);
-  const [lastWeekTotal, setLastWeekTotal] = useState(0);
-  const [monthTotal, setMonthTotal] = useState(0);
-  const [lastMonthTotal, setLastMonthTotal] = useState(0);
+  
+  const [todayIncome, setTodayIncome] = useState(0);
+  const [todayIncomeCount, setTodayIncomeCount] = useState(0);
+  const [todayExpense, setTodayExpense] = useState(0);
+  const [todayExpenseCount, setTodayExpenseCount] = useState(0);
+  
+  const [weekIncome, setWeekIncome] = useState(0);
+  const [weekExpense, setWeekExpense] = useState(0);
+  const [lastWeekIncome, setLastWeekIncome] = useState(0);
+  const [lastWeekExpense, setLastWeekExpense] = useState(0);
+  
+  const [monthIncome, setMonthIncome] = useState(0);
+  const [monthExpense, setMonthExpense] = useState(0);
+  const [lastMonthIncome, setLastMonthIncome] = useState(0);
+  const [lastMonthExpense, setLastMonthExpense] = useState(0);
+  
   const [recentTransactions, setRecentTransactions] = useState([]);
-  const [weeklyData, setWeeklyData] = useState([]);
+  const [weeklyIncomeData, setWeeklyIncomeData] = useState([]);
+  const [weeklyExpenseData, setWeeklyExpenseData] = useState([]);
 
   const applyDashboardData = useCallback((data) => {
-    setTodayTotal(data.todayTotal);
-    setTodayCount(data.todayCount);
-    setWeekTotal(data.weekTotal);
-    setLastWeekTotal(data.lastWeekTotal);
-    setMonthTotal(data.monthTotal);
-    setLastMonthTotal(data.lastMonthTotal);
+    setTodayIncome(data.todayIncome);
+    setTodayIncomeCount(data.todayIncomeCount);
+    setTodayExpense(data.todayExpense);
+    setTodayExpenseCount(data.todayExpenseCount);
+    
+    setWeekIncome(data.weekIncome);
+    setWeekExpense(data.weekExpense);
+    setLastWeekIncome(data.lastWeekIncome);
+    setLastWeekExpense(data.lastWeekExpense);
+    
+    setMonthIncome(data.monthIncome);
+    setMonthExpense(data.monthExpense);
+    setLastMonthIncome(data.lastMonthIncome);
+    setLastMonthExpense(data.lastMonthExpense);
+    
     setRecentTransactions(data.recentTransactions);
-    setWeeklyData(data.weeklyData);
+    setWeeklyIncomeData(data.weeklyIncomeData);
+    setWeeklyExpenseData(data.weeklyExpenseData);
   }, []);
 
   const fetchDashboard = useCallback(async () => {
@@ -56,21 +77,49 @@ export function useDashboard() {
     fetchDashboard();
   }, [fetchDashboard]);
 
-  const weekTrend =
-    lastWeekTotal > 0 ? Math.round(((weekTotal - lastWeekTotal) / lastWeekTotal) * 100) : 0;
-  const monthTrend =
-    lastMonthTotal > 0 ? Math.round(((monthTotal - lastMonthTotal) / lastMonthTotal) * 100) : 0;
+  const weekIncomeTrend =
+    lastWeekIncome > 0 ? Math.round(((weekIncome - lastWeekIncome) / lastWeekIncome) * 100) : 0;
+  const weekExpenseTrend =
+    lastWeekExpense > 0 ? Math.round(((weekExpense - lastWeekExpense) / lastWeekExpense) * 100) : 0;
+
+  const monthIncomeTrend =
+    lastMonthIncome > 0 ? Math.round(((monthIncome - lastMonthIncome) / lastMonthIncome) * 100) : 0;
+  const monthExpenseTrend =
+    lastMonthExpense > 0 ? Math.round(((monthExpense - lastMonthExpense) / lastMonthExpense) * 100) : 0;
 
   return {
     loading,
-    todayTotal,
-    todayCount,
-    weekTotal,
-    weekTrend,
-    monthTotal,
-    monthTrend,
+    
+    // Income metrics
+    todayTotal: todayIncome,
+    todayCount: todayIncomeCount,
+    todayIncome,
+    todayIncomeCount,
+    weekTotal: weekIncome,
+    weekTrend: weekIncomeTrend,
+    weekIncome,
+    weekIncomeTrend,
+    monthTotal: monthIncome,
+    monthTrend: monthIncomeTrend,
+    monthIncome,
+    monthIncomeTrend,
+    
+    // Expense metrics
+    todayExpense,
+    todayExpenseCount,
+    weekExpense,
+    weekExpenseTrend,
+    monthExpense,
+    monthExpenseTrend,
+    
     recentTransactions,
-    weeklyData,
+    weeklyIncomeData,
+    weeklyExpenseData,
+    
+    // Keep weeklyData as weeklyIncomeData for backward compatibility
+    weeklyData: weeklyIncomeData,
+    
     refresh: fetchDashboard,
   };
 }
+

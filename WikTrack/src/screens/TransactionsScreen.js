@@ -21,6 +21,9 @@ const FILTERS = [
   { key: 'p2p', label: 'P2P', color: 'teal' },
   { key: 'till', label: 'Till', color: 'darkgreen' },
   { key: 'paybill', label: 'Paybill', color: 'blue' },
+  { key: 'withdrawal', label: 'Withdrawal', color: 'orange' },
+  { key: 'fuliza', label: 'Fuliza', color: 'red' },
+  { key: 'repayment', label: 'Repay', color: 'purple' },
 ];
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -82,8 +85,20 @@ export default function TransactionsScreen({ navigation, route }) {
   const [showSearch, setShowSearch] = useState(false);
   const [activeDateFilter, setActiveDateFilter] = useState('all');
   const {
-    loading, groupedTransactions, totalAmount, totalCount,
-    filter, setFilter, searchQuery, setSearchQuery, setDateRange, refresh,
+    loading,
+    groupedTransactions,
+    totalCount,
+    flow,
+    setFlow,
+    totalIncome,
+    totalExpense,
+    netBalance,
+    filter,
+    setFilter,
+    searchQuery,
+    setSearchQuery,
+    setDateRange,
+    refresh,
   } = useTransactions();
 
   const applyDateFilter = (key) => {
@@ -94,9 +109,12 @@ export default function TransactionsScreen({ navigation, route }) {
   useEffect(() => {
     if (route?.params?.filterToday) {
       applyDateFilter('today');
-      navigation.setParams({ filterToday: undefined });
+      if (route.params.flow) {
+        setFlow(route.params.flow);
+      }
+      navigation.setParams({ filterToday: undefined, flow: undefined });
     }
-  }, [navigation, route?.params?.filterToday]);
+  }, [navigation, route?.params?.filterToday, route?.params?.flow]);
 
   return (
     <View style={styles.container}>
@@ -137,6 +155,28 @@ export default function TransactionsScreen({ navigation, route }) {
         </View>
       )}
 
+      {/* Flow Selector Tab */}
+      <View style={styles.flowSelectorContainer}>
+        <TouchableOpacity
+          style={[styles.flowTab, flow === 'all' && styles.flowTabActiveAll]}
+          onPress={() => setFlow('all')}
+        >
+          <Text style={[styles.flowTabText, flow === 'all' && styles.flowTabTextActive]}>All</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.flowTab, flow === 'in' && styles.flowTabActiveIncome]}
+          onPress={() => setFlow('in')}
+        >
+          <Text style={[styles.flowTabText, flow === 'in' && styles.flowTabTextActive]}>Income</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.flowTab, flow === 'out' && styles.flowTabActiveExpense]}
+          onPress={() => setFlow('out')}
+        >
+          <Text style={[styles.flowTabText, flow === 'out' && styles.flowTabTextActive]}>Expenses</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Filter Chips */}
       <View style={styles.filterPanel}>
         <View style={styles.filterRow}>
@@ -166,12 +206,24 @@ export default function TransactionsScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Summary Strip */}
+      {/* 3-Column Summary Strip */}
       <View style={styles.summaryStrip}>
-        <Text style={styles.summaryText}>
-          {totalCount} transaction{totalCount !== 1 ? 's' : ''}
-        </Text>
-        <Text style={styles.summaryAmount}>{formatKES(totalAmount)} total</Text>
+        <View style={styles.summaryCol}>
+          <Text style={styles.summaryLabel}>INCOME</Text>
+          <Text style={[styles.summaryVal, { color: colors.green }]}>{formatKES(totalIncome)}</Text>
+        </View>
+        <View style={styles.summaryDivider} />
+        <View style={styles.summaryCol}>
+          <Text style={styles.summaryLabel}>EXPENSES</Text>
+          <Text style={[styles.summaryVal, { color: colors.red }]}>{formatKES(totalExpense)}</Text>
+        </View>
+        <View style={styles.summaryDivider} />
+        <View style={styles.summaryCol}>
+          <Text style={styles.summaryLabel}>NET BAL</Text>
+          <Text style={[styles.summaryVal, { color: netBalance >= 0 ? colors.navy : colors.orange }]}>
+            {formatKES(netBalance)}
+          </Text>
+        </View>
       </View>
 
       {/* Transaction List */}
@@ -185,11 +237,12 @@ export default function TransactionsScreen({ navigation, route }) {
         </View>
       ) : groupedTransactions.length === 0 ? (
         <EmptyState
-          heading="No payments found"
-          body="Try a different filter or date range."
+          heading="No transactions found"
+          body="Try a different filter, search term or date range."
           ctaText="Clear filters"
           onCtaPress={() => {
             setFilter('all');
+            setFlow('all');
             setSearchQuery('');
             applyDateFilter('all');
           }}
@@ -268,6 +321,38 @@ const styles = StyleSheet.create({
     color: colors.navy,
     paddingVertical: spacing.xs,
   },
+  flowSelectorContainer: {
+    flexDirection: 'row',
+    backgroundColor: colors.border,
+    borderRadius: 10,
+    padding: 3,
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.sm,
+  },
+  flowTab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  flowTabActiveAll: {
+    backgroundColor: colors.white,
+  },
+  flowTabActiveIncome: {
+    backgroundColor: colors.greenLight,
+  },
+  flowTabActiveExpense: {
+    backgroundColor: colors.redLight,
+  },
+  flowTabText: {
+    ...typography.bodyM,
+    color: colors.grayText,
+    fontWeight: '600',
+  },
+  flowTabTextActive: {
+    color: colors.navy,
+    fontWeight: '700',
+  },
   filterPanel: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xs,
@@ -292,7 +377,7 @@ const styles = StyleSheet.create({
   },
   summaryStrip: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     alignItems: 'center',
     backgroundColor: colors.white,
     marginHorizontal: spacing.xl,
@@ -302,14 +387,26 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     ...shadows.card,
   },
-  summaryText: {
-    ...typography.bodyM,
-    color: colors.grayText,
+  summaryCol: {
+    alignItems: 'center',
+    flex: 1,
   },
-  summaryAmount: {
-    ...typography.bodyM,
+  summaryLabel: {
+    ...typography.bodyXS,
+    color: colors.grayText,
     fontWeight: '700',
-    color: colors.navy,
+    fontSize: 10,
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  summaryVal: {
+    ...typography.bodyM,
+    fontWeight: 'bold',
+  },
+  summaryDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: colors.border,
   },
   loadingContainer: {
     paddingHorizontal: spacing.xl,

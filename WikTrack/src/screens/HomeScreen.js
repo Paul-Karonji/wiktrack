@@ -20,17 +20,23 @@ import SummaryCard from '../components/cards/SummaryCard';
 import TransactionRow from '../components/lists/TransactionRow';
 import EmptyState from '../components/shared/EmptyState';
 import SkeletonCard, { SkeletonRow } from '../components/shared/SkeletonCard';
+import SyncStatusIndicator from '../components/status/SyncStatusIndicator';
 
 const screenWidth = Dimensions.get('window').width;
 
 export default function HomeScreen({ navigation }) {
   const { ownerName, syncStatus, lastSyncAt, businessId } = useBusinessStore();
   const {
-    loading, todayTotal, todayCount, weekTotal, weekTrend,
-    monthTotal, monthTrend, recentTransactions, weeklyData, refresh,
+    loading,
+    todayIncome, todayIncomeCount, todayExpense, todayExpenseCount,
+    weekIncome, weekExpense, weekIncomeTrend, weekExpenseTrend,
+    monthIncome, monthExpense, monthIncomeTrend, monthExpenseTrend,
+    recentTransactions, weeklyIncomeData, weeklyExpenseData, refresh,
   } = useDashboard();
   const { sync } = useSmsSync();
   const [refreshing, setRefreshing] = React.useState(false);
+  const [selectedMetric, setSelectedMetric] = React.useState('income'); // 'income' or 'expense'
+
 
   React.useEffect(() => {
     if (businessId) {
@@ -63,15 +69,13 @@ export default function HomeScreen({ navigation }) {
 
   const firstName = ownerName ? ownerName.split(' ')[0] : '';
 
-  const chartData = {
-    labels: weeklyData.map((d) => d.label),
-    datasets: [{
-      data: weeklyData.length > 0 ? weeklyData.map((d) => d.value) : [0, 0, 0, 0, 0, 0, 0],
-    }],
-  };
+  const activeWeeklyData = selectedMetric === 'income' ? weeklyIncomeData : weeklyExpenseData;
 
-  const handleHeroPress = () => {
-    navigation.navigate('Transactions', { filterToday: true });
+  const chartData = {
+    labels: activeWeeklyData.map((d) => d.label),
+    datasets: [{
+      data: activeWeeklyData.length > 0 ? activeWeeklyData.map((d) => d.value) : [0, 0, 0, 0, 0, 0, 0],
+    }],
   };
 
   return (
@@ -105,19 +109,59 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Hero Income Card */}
+        {/* Hero Cards Row */}
         {loading ? (
           <SkeletonCard height={180} />
         ) : (
-          <HeroMetricCard
-            title="Today's Income"
-            value={formatKES(todayTotal)}
-            subtitle={`${todayCount} payment${todayCount !== 1 ? 's' : ''} received today`}
-            syncStatus={syncStatus}
-            lastSyncedAt={lastSyncAt}
-            onPress={handleHeroPress}
-            onSyncPress={() => navigation.navigate('Settings')}
-          />
+          <View>
+            <View style={styles.heroRow}>
+              <TouchableOpacity
+                style={[styles.heroCard, { backgroundColor: colors.greenDark }]}
+                onPress={() => navigation.navigate('Transactions', { filterToday: true, flow: 'in' })}
+                activeOpacity={0.92}
+              >
+                <View style={styles.heroHeader}>
+                  <Text style={styles.heroLabel}>TODAY'S INCOME</Text>
+                  <View style={styles.heroArrow}>
+                    <Wallet size={15} color="rgba(255,255,255,0.8)" />
+                  </View>
+                </View>
+                <Text style={styles.heroValue} numberOfLines={1} adjustsFontSizeToFit>
+                  {formatKES(todayIncome)}
+                </Text>
+                <Text style={styles.heroSubtitle}>
+                  {todayIncomeCount} payment{todayIncomeCount !== 1 ? 's' : ''} received
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.heroCard, { backgroundColor: '#B91C1C' }]}
+                onPress={() => navigation.navigate('Transactions', { filterToday: true, flow: 'out' })}
+                activeOpacity={0.92}
+              >
+                <View style={styles.heroHeader}>
+                  <Text style={styles.heroLabel}>TODAY'S EXPENSES</Text>
+                  <View style={styles.heroArrow}>
+                    <TrendingUp size={15} color="rgba(255,255,255,0.8)" />
+                  </View>
+                </View>
+                <Text style={styles.heroValue} numberOfLines={1} adjustsFontSizeToFit>
+                  {formatKES(todayExpense)}
+                </Text>
+                <Text style={styles.heroSubtitle}>
+                  {todayExpenseCount} expense{todayExpenseCount !== 1 ? 's' : ''} sent
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.syncStrip}>
+              <SyncStatusIndicator
+                status={syncStatus}
+                lastSyncedAt={lastSyncAt}
+                onPress={() => navigation.navigate('Settings')}
+              />
+            </View>
+          </View>
         )}
 
         {/* Summary Cards */}
@@ -130,26 +174,62 @@ export default function HomeScreen({ navigation }) {
           ) : (
             <>
               <SummaryCard
-                label="This Week"
-                value={formatKES(weekTotal)}
-                trend={weekTrend}
-                icon={<TrendingUp size={18} color={colors.green} />}
+                label={`Week (${selectedMetric === 'income' ? 'Income' : 'Expenses'})`}
+                value={formatKES(selectedMetric === 'income' ? weekIncome : weekExpense)}
+                trend={selectedMetric === 'income' ? weekIncomeTrend : weekExpenseTrend}
+                icon={<TrendingUp size={18} color={selectedMetric === 'income' ? colors.green : colors.red} />}
               />
               <View style={{ width: spacing.md }} />
               <SummaryCard
-                label="This Month"
-                value={formatKES(monthTotal)}
-                trend={monthTrend}
-                icon={<Calendar size={18} color={colors.green} />}
+                label={`Month (${selectedMetric === 'income' ? 'Income' : 'Expenses'})`}
+                value={formatKES(selectedMetric === 'income' ? monthIncome : monthExpense)}
+                trend={selectedMetric === 'income' ? monthIncomeTrend : monthExpenseTrend}
+                icon={<Calendar size={18} color={selectedMetric === 'income' ? colors.green : colors.red} />}
               />
             </>
           )}
         </View>
 
-        {/* 7-Day Income Trend */}
-        {!loading && weeklyData.length > 0 && (
+        {/* Weekly Trend with Dynamic Toggle */}
+        {!loading && activeWeeklyData.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>7-Day Income Trend</Text>
+            <View style={styles.chartHeader}>
+              <Text style={styles.sectionTitle}>Weekly Trend</Text>
+              <View style={styles.toggleContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.toggleButton,
+                    selectedMetric === 'income' && styles.toggleButtonActiveIncome,
+                  ]}
+                  onPress={() => setSelectedMetric('income')}
+                >
+                  <Text
+                    style={[
+                      styles.toggleButtonText,
+                      selectedMetric === 'income' && styles.toggleButtonTextActive,
+                    ]}
+                  >
+                    Income
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.toggleButton,
+                    selectedMetric === 'expense' && styles.toggleButtonActiveExpense,
+                  ]}
+                  onPress={() => setSelectedMetric('expense')}
+                >
+                  <Text
+                    style={[
+                      styles.toggleButtonText,
+                      selectedMetric === 'expense' && styles.toggleButtonTextActive,
+                    ]}
+                  >
+                    Expenses
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
             <View style={styles.chartContainer}>
               <BarChart
                 data={chartData}
@@ -165,7 +245,10 @@ export default function HomeScreen({ navigation }) {
                   backgroundGradientFrom: colors.white,
                   backgroundGradientTo: colors.white,
                   decimalPlaces: 0,
-                  color: (opacity = 1) => `rgba(22, 163, 74, ${opacity})`,
+                  color: (opacity = 1) =>
+                    selectedMetric === 'income'
+                      ? `rgba(22, 163, 74, ${opacity})`
+                      : `rgba(220, 38, 38, ${opacity})`,
                   labelColor: () => colors.grayText,
                   barPercentage: 0.6,
                   propsForBackgroundLines: {
@@ -179,10 +262,10 @@ export default function HomeScreen({ navigation }) {
           </View>
         )}
 
-        {/* Recent Payments */}
+        {/* Recent Transactions */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Payments</Text>
+            <Text style={styles.sectionTitle}>Recent Transactions</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Transactions')}>
               <Text style={styles.viewAll}>View all →</Text>
             </TouchableOpacity>
@@ -196,8 +279,8 @@ export default function HomeScreen({ navigation }) {
             </>
           ) : recentTransactions.length === 0 ? (
             <EmptyState
-              heading="No payments found"
-              body="Synced M-Pesa income will appear here automatically."
+              heading="No transactions found"
+              body="Synced M-Pesa transactions will appear here automatically."
               ctaText="Check sync settings"
               onCtaPress={() => navigation.navigate('Settings')}
             />
@@ -261,6 +344,54 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...shadows.card,
   },
+  heroRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  heroCard: {
+    flex: 1,
+    borderRadius: 16,
+    padding: spacing.md,
+    minHeight: 120,
+    justifyContent: 'space-between',
+    ...shadows.card,
+  },
+  heroHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  heroLabel: {
+    ...typography.bodyXS,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  heroArrow: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroValue: {
+    ...typography.heading2,
+    color: colors.white,
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginVertical: spacing.xs,
+  },
+  heroSubtitle: {
+    ...typography.bodyXS,
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 11,
+  },
+  syncStrip: {
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.xs,
+  },
   summaryRow: {
     flexDirection: 'row',
     marginTop: spacing.lg,
@@ -277,13 +408,43 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...typography.heading3,
     color: colors.navy,
+    marginVertical: 0,
+  },
+  chartHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: spacing.md,
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: colors.border,
+    borderRadius: 8,
+    padding: 2,
+  },
+  toggleButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  toggleButtonActiveIncome: {
+    backgroundColor: colors.green,
+  },
+  toggleButtonActiveExpense: {
+    backgroundColor: colors.red,
+  },
+  toggleButtonText: {
+    ...typography.bodyS,
+    color: colors.grayText,
+    fontWeight: '600',
+  },
+  toggleButtonTextActive: {
+    color: colors.white,
   },
   viewAll: {
     ...typography.bodyM,
     color: colors.green,
     fontWeight: '600',
-    marginBottom: spacing.md,
   },
   chartContainer: {
     backgroundColor: colors.white,
@@ -295,3 +456,4 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
 });
+
